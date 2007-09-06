@@ -3,10 +3,8 @@ AUTOMAKE_OPTIONS = subdir-objects
 lib_LTLIBRARIES = libvidcap.la
 
 libvidcap_la_CPPFLAGS = -I$(top_srcdir)/include
-libvidcap_la_CFLAGS = -Wall -Wextra -Wno-unused-parameter -Wno-multichar \
-		      $(PTHREAD_CFLAGS)
-libvidcap_la_CXXFLAGS = -Wall -Wextra -Wno-unused-parameter -Wno-multichar \
-			$(PTHREAD_CFLAGS)
+libvidcap_la_CFLAGS = -Wall -Wextra -Wno-unused-parameter $(PTHREAD_CFLAGS)
+libvidcap_la_CXXFLAGS = -Wall -Wextra -Wno-unused-parameter $(PTHREAD_CFLAGS)
 
 libvidcap_la_LIBADD = $(PTHREAD_LIBS)
 

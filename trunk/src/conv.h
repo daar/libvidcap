@@ -31,10 +31,10 @@
 
 enum vidcap_fourccs_extra
 {
-	VIDCAP_FOURCC_RGB24  = ' r24',
-	VIDCAP_FOURCC_RGB555 = 'r555',
-	VIDCAP_FOURCC_YVU9   = 'yvu9',
-	VIDCAP_FOURCC_2VUY   = '2vuy',
+	VIDCAP_FOURCC_RGB24  = 200,
+	VIDCAP_FOURCC_RGB555 = 201,
+	VIDCAP_FOURCC_YVU9   = 202,
+	VIDCAP_FOURCC_2VUY   = 203,
 };
 
 typedef int (*conv_func)(int width, int height,

@@ -202,19 +202,15 @@ source_decomp_callback(void * decomp_tracking_refcon,
 	}
 
 	if ( qt_src_ctx->frame_count == 1 )
-		log_info("capture time: %c%c%c%c  %c%c%c%c  %c%c%c%c %s\n",
+		log_info("capture time: %c%c%c%c  %s  %s  %s\n",
 				(char)(pixel_format >> 24),
 				(char)(pixel_format >> 16),
 				(char)(pixel_format >> 8),
 				(char)(pixel_format >> 0),
-				(char)(src_ctx->fmt_native.fourcc >> 24),
-				(char)(src_ctx->fmt_native.fourcc >> 16),
-				(char)(src_ctx->fmt_native.fourcc >> 8),
-				(char)(src_ctx->fmt_native.fourcc >> 0),
-				(char)(src_ctx->fmt_nominal.fourcc >> 24),
-				(char)(src_ctx->fmt_nominal.fourcc >> 16),
-				(char)(src_ctx->fmt_nominal.fourcc >> 8),
-				(char)(src_ctx->fmt_nominal.fourcc >> 0),
+				vidcap_fourcc_string_get(
+					src_ctx->fmt_native.fourcc),
+				vidcap_fourcc_string_get(
+					src_ctx->fmt_nominal.fourcc),
 				src_ctx->src_info.identifier);
 
 	sapi_src_capture_notify(src_ctx,
@@ -285,27 +281,19 @@ source_decomp_session_setup(struct sapi_src_context * src_ctx)
 
 	if ( map_fourcc_to_ostype(src_ctx->fmt_native.fourcc, &pixel_format) )
 	{
-		log_error("invalid bound fourcc '%c%c%c%c'\n",
-				(char)(src_ctx->fmt_native.fourcc >> 24),
-				(char)(src_ctx->fmt_native.fourcc >> 16),
-				(char)(src_ctx->fmt_native.fourcc >> 8),
-				(char)(src_ctx->fmt_native.fourcc >> 0));
+		log_error("invalid bound fourcc '%s'\n",
+				vidcap_fourcc_string_get(
+					src_ctx->fmt_native.fourcc));
 		return -1;
 	}
 
-	log_info("setup decomp: %c%c%c%c  %c%c%c%c  %c%c%c%c %s\n",
+	log_info("setup decomp: %c%c%c%c  %s  %s  %s\n",
 			(char)(pixel_format >> 24),
 			(char)(pixel_format >> 16),
 			(char)(pixel_format >> 8),
 			(char)(pixel_format >> 0),
-			(char)(src_ctx->fmt_native.fourcc >> 24),
-			(char)(src_ctx->fmt_native.fourcc >> 16),
-			(char)(src_ctx->fmt_native.fourcc >> 8),
-			(char)(src_ctx->fmt_native.fourcc >> 0),
-			(char)(src_ctx->fmt_nominal.fourcc >> 24),
-			(char)(src_ctx->fmt_nominal.fourcc >> 16),
-			(char)(src_ctx->fmt_nominal.fourcc >> 8),
-			(char)(src_ctx->fmt_nominal.fourcc >> 0),
+			vidcap_fourcc_string_get(src_ctx->fmt_native.fourcc),
+			vidcap_fourcc_string_get(src_ctx->fmt_nominal.fourcc),
 			src_ctx->src_info.identifier);
 
 	n = CFNumberCreate(0, kCFNumberSInt32Type, &pixel_format);
@@ -403,12 +391,9 @@ capture_thread_proc(void * data)
 
 	if ( map_fourcc_to_ostype(src_ctx->fmt_native.fourcc, &pixel_format) )
 	{
-		log_error("invalid pixel format '%c%c%c%c' (0x%08x)\n",
-				(char)(src_ctx->fmt_native.fourcc >> 24),
-				(char)(src_ctx->fmt_native.fourcc >> 16),
-				(char)(src_ctx->fmt_native.fourcc >> 8),
-				(char)(src_ctx->fmt_native.fourcc >> 0),
-				src_ctx->fmt_native.fourcc);
+		log_error("invalid pixel format '%s'\n",
+				vidcap_fourcc_string_get(
+					src_ctx->fmt_native.fourcc));
 		return (void *)-1;
 	}
 

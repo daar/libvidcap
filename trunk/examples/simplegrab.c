@@ -150,13 +150,10 @@ static char * my_fmt_info_str(struct vidcap_fmt_info * fmt_info)
 {
 	const int size = 255;
 	char * s = malloc(size);
-	snprintf(s, size, "%3dx%3d %c%c%c%c %.2f %d/%d",
+	snprintf(s, size, "%3dx%3d %s %.2f %d/%d",
 			fmt_info->width,
 			fmt_info->height,
-			(fmt_info->fourcc >> 24) & 0xff,
-			(fmt_info->fourcc >> 16) & 0xff,
-			(fmt_info->fourcc >> 8) & 0xff,
-			(fmt_info->fourcc >> 0) & 0xff,
+			vidcap_fourcc_string_get(fmt_info->fourcc),
 			(float)fmt_info->fps_numerator /
 			(float)fmt_info->fps_denominator,
 			fmt_info->fps_numerator,
