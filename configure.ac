@@ -1,11 +1,11 @@
+dnl Copyright (C) 2007 Wimba, Inc.
+
 AC_PREREQ(2.59)
 
 dnl package version
-m4_define(VC_MAJOR, [0])
-m4_define(VC_MINOR, [1])
-m4_define(VC_MICRO, [0])
+m4_define(VIDCAP_VERSION, [0.1])
 
-AC_INIT([libvidcap], VC_MAJOR.VC_MINOR.VC_MICRO, [jpgrayson (at) gmail (dot) com])
+AC_INIT([libvidcap], VIDCAP_VERSION, [jpgrayson@gmail.com])
 AC_CONFIG_SRCDIR([include/vidcap/vidcap.h])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([foreign -Wall])
@@ -36,6 +36,14 @@ AC_PROG_LIBTOOL
 
 ACX_PTHREAD
 
+AC_CHECK_PROG(have_pkg_config, pkg-config, yes, no)
+
+if test x"$have_pkg_config" = "xno"; then
+   AC_MSG_ERROR(pkg-config is required to install this program)
+fi
+
+PKG_PROG_PKG_CONFIG
+
 AC_CHECK_FUNCS(nanosleep gettimeofday snprintf Sleep)
 
 AC_CHECK_HEADER(linux/videodev.h,
@@ -63,11 +71,15 @@ AM_CONDITIONAL(HAVE_V4L, test "x$have_v4l" = "xyes")
 AM_CONDITIONAL(HAVE_QUICKTIME, test "x$have_quicktime" = "xyes")
 AM_CONDITIONAL(HAVE_DIRECTSHOW, test "x$have_directshow" = "xyes")
 
+dnl TODO: how do we make the various quicktime frameworks fit in?
+AC_SUBST(PKG_REQUIRES)
+
 AC_CONFIG_FILES([
   Makefile
   include/Makefile
   include/vidcap/Makefile
   examples/Makefile
+  vidcap.pc
   src/Makefile
 ])
 

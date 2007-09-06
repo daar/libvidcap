@@ -33,9 +33,9 @@ extern "C" {
 #define VIDCAP_NAME_LENGTH 256
 
 enum vidcap_fourccs {
-	VIDCAP_FOURCC_I420   = 'i420',
-	VIDCAP_FOURCC_YUY2   = 'yuy2',
-	VIDCAP_FOURCC_RGB32  = ' rgb',
+	VIDCAP_FOURCC_I420   = 100,
+	VIDCAP_FOURCC_YUY2   = 101,
+	VIDCAP_FOURCC_RGB32  = 102,
 };
 
 typedef void vidcap_state;
@@ -142,6 +142,9 @@ vidcap_src_capture_start(vidcap_src *,
 
 int
 vidcap_src_capture_stop(vidcap_src *);
+
+const char *
+vidcap_fourcc_string_get(int fourcc);
 
 #ifdef __cplusplus
 }

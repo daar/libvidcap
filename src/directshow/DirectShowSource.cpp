@@ -1011,11 +1011,8 @@ DirectShowSource::mapVidcapFourccToDirectShowMediaType(int fourcc, DWORD & data)
 		data = 0x32595559;
 		break;
 	default:
-		log_warn("failed to map '%c%c%c%c' to DS media type\n",
-				(char)((fourcc >> 24) & 0xff),
-				(char)((fourcc >> 16) & 0xff),
-				(char)((fourcc >> 8) & 0xff),
-				(char)((fourcc >> 0) & 0xff));
+		log_warn("failed to map '%s' to DS media type\n",
+				vidcap_fourcc_string_get(fourcc));
 		return -1;
 	}
 

@@ -369,12 +369,9 @@ vidcap_format_bind(vidcap_src * src,
 
 	if ( !src_ctx->format_validate(src_ctx, fmt_info, &fmt_native) )
 	{
-		log_error("invalid format %dx%d %c%c%c%c %d/%d\n",
+		log_error("invalid format %dx%d %s %d/%d\n",
 				fmt_info->width, fmt_info->height,
-				(char)(fmt_info->fourcc >> 24),
-				(char)(fmt_info->fourcc >> 16),
-				(char)(fmt_info->fourcc >> 8),
-				(char)(fmt_info->fourcc >> 0),
+				vidcap_fourcc_string_get(fmt_info->fourcc),
 				fmt_info->fps_numerator,
 				fmt_info->fps_denominator);
 		return -1;
@@ -405,11 +402,9 @@ vidcap_format_bind(vidcap_src * src,
 
 		if ( !src_ctx->fmt_conv_buf_size )
 		{
-			log_error("failed to get buffer size for %c%c%c%c\n",
-				(char)(fmt_info->fourcc >> 24),
-				(char)(fmt_info->fourcc >> 16),
-				(char)(fmt_info->fourcc >> 8),
-				(char)(fmt_info->fourcc >> 0));
+			log_error("failed to get buffer size for %s\n",
+					vidcap_fourcc_string_get(
+						fmt_info->fourcc));
 			return -1;
 		}
 
@@ -492,3 +487,26 @@ vidcap_src_capture_stop(vidcap_src * src)
 	return ret;
 }
 
+const char *
+vidcap_fourcc_string_get(int fourcc)
+{
+	switch ( fourcc )
+	{
+		case VIDCAP_FOURCC_I420:
+			return "i420";
+		case VIDCAP_FOURCC_YUY2:
+			return "yuy2";
+		case VIDCAP_FOURCC_RGB32:
+			return " rgb";
+		case VIDCAP_FOURCC_RGB24:
+			return " r24";
+		case VIDCAP_FOURCC_RGB555:
+			return "r555";
+		case VIDCAP_FOURCC_YVU9:
+			return "yvu9";
+		case VIDCAP_FOURCC_2VUY:
+			return "2vuy";
+		default:
+			return "????";
+	}
+}

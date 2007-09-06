@@ -65,14 +65,10 @@ Grabber::Grabber(QObject * parent,
 		throw std::runtime_error("failed vidcap_format_info_get()");
 
 	qDebug() << " bind fmt:"
-		<< QString("%2x%3 %4%5%6%7 (0x%8) %9 %10/%11")
+		<< QString("%2x%3 %4 %5 %6/%7")
 		.arg(fmt_info.width, 3)
 		.arg(fmt_info.height, 3)
-		.arg(QChar(static_cast<uchar>(fmt_info.fourcc >> 24)))
-		.arg(QChar(static_cast<uchar>(fmt_info.fourcc >> 16)))
-		.arg(QChar(static_cast<uchar>(fmt_info.fourcc >> 8)))
-		.arg(QChar(static_cast<uchar>(fmt_info.fourcc >> 0)))
-		.arg(static_cast<uint>(fmt_info.fourcc), 8, 16, QChar('0'))
+		.arg(vidcap_fourcc_string_get(fmt_info.fourcc))
 		.arg(static_cast<double>(fmt_info.fps_numerator) /
 		     static_cast<double>(fmt_info.fps_denominator),
 		     0, 'f', 2)
