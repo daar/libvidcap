@@ -54,16 +54,11 @@ public:
 	}
 
 private:
-	bool canConvertToRGB32();
 	bool checkFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative,
 			int formatNum,
 			bool *needsFramerateEnforcing, bool *needsFormatConversion,
 			AM_MEDIA_TYPE **candidateMediaFormat) const;
-
-	// NOTE: this will soon be obsolete
-	AM_MEDIA_TYPE * getMediaType( CComPtr< IPin > pPin) const;
-	void printMediaFormatType(AM_MEDIA_TYPE *pMedia);
 
 	// Fake out COM reference counting
 	STDMETHODIMP_(ULONG) AddRef() { return 2; }
@@ -90,7 +85,6 @@ private:
 	DShowSrcManager * dshowMgr_;
 
 	IBaseFilter * pSource_;
-	CComPtr<IPin> pSourceOutPin_;          // TODO: remove CComPtr
 	ICaptureGraphBuilder2 *pCapGraphBuilder_;
 	IAMStreamConfig * pStreamConfig_;
 	IGraphBuilder *pFilterGraph_;
@@ -102,11 +96,6 @@ private:
 	IMediaControl * pMediaControlIF_;
 
 	AM_MEDIA_TYPE *nativeMediaType_;
-
-	// when necessary to convert source output format
-	//NOTE: these two will soon be obsolete
-	IBaseFilter *pIntermediateFilter_;	
-	DWORD intermediateMediaType_;
 
 	CRITICAL_SECTION  captureMutex_;
 	bool stoppingCapture_;
