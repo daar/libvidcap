@@ -126,7 +126,7 @@ static int
 source_release(struct sapi_src_context * src_ctx)
 {
 	delete static_cast<DirectShowSource *>(src_ctx->priv);
-	delete src_ctx;
+
 	return 0;
 }
 
