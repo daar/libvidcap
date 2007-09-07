@@ -197,9 +197,9 @@ int conv_rgb24_to_rgb32(int width, int height, const char * src,
 	for ( i = 0; i < width * height; ++i )
 	{
 		*d = 0xff000000;
-		*d |= (*src++) << 16;
-		*d |= (*src++) << 8;
-		*d++ |= (*src++);
+		*d |= ((unsigned char)(*src++));          // blue
+		*d |= ((unsigned char)(*src++)) << 8;	  // green
+		*d++ |= ((unsigned char)(*src++)) << 16;  // red
 	}
 
 	return 0;
