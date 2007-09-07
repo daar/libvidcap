@@ -40,11 +40,19 @@ enum vidcap_fourccs_extra
 typedef int (*conv_func)(int width, int height,
 		const char * src, char * dst, int dst_size);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 conv_func
 conv_conversion_func_get(int src_fourcc, int dst_fourcc);
 
 int
 conv_fmt_size_get(int width, int height, int fourcc);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 
