@@ -50,6 +50,7 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 	  pSampleGrabberIF_(0),
 	  pNullRenderer_(0),
 	  pMediaControlIF_(0),
+	  nativeMediaType_(0),
 	  pIntermediateFilter_(0),
 	  intermediateMediaType_(0),
 	  stoppingCapture_(false)
@@ -192,6 +193,9 @@ DirectShowSource::~DirectShowSource()
 	stop();
 
 	dshowMgr_->unregisterSrcGraph(pMediaEventIF_);
+
+	if ( nativeMediaType_ )
+		dshowMgr_->freeMediaType(*nativeMediaType_);
 
 	// These below were initialized in constructor
 	pMediaEventIF_->Release();
@@ -574,7 +578,7 @@ DirectShowSource::start()
 	}
 
 	// Get the appropriate source media type
-	AM_MEDIA_TYPE * pAmMediaType = getMediaType(pSourceOutPin_);
+	AM_MEDIA_TYPE * pAmMediaType = nativeMediaType_;
 	if ( !pAmMediaType )
 	{
 		log_error("failed to match media type\n");
@@ -584,8 +588,12 @@ DirectShowSource::start()
 	// set the frame rate
 	VIDEOINFOHEADER * vih = (VIDEOINFOHEADER *) pAmMediaType->pbFormat;
 	vih->AvgTimePerFrame = 10000000 *
-		sourceContext_->fmt_nominal.fps_denominator /
-		sourceContext_->fmt_nominal.fps_numerator;
+		sourceContext_->fmt_native.fps_denominator /
+		sourceContext_->fmt_native.fps_numerator;
+
+	// set the dimensions
+	vih->bmiHeader.biWidth = sourceContext_->fmt_native.width;
+	vih->bmiHeader.biHeight = sourceContext_->fmt_native.height;
 
 	// set the stream's media type
 	hr = pStreamConfig_->SetFormat(pAmMediaType);
@@ -606,6 +614,7 @@ DirectShowSource::start()
 	}
 	else
 	{
+		//FIXME: do at bind time
 		hr = pSampleGrabberIF_->SetMediaType(pAmMediaType);
 	}
 	if ( FAILED(hr) )
@@ -745,7 +754,8 @@ bail_5:
 	pNullRenderer_->Release();
 	pNullRenderer_ = 0;
 bail_4:
-	dshowMgr_->freeMediaType(*pAmMediaType);
+	// free this at next bind time, and in destructor 
+	//dshowMgr_->freeMediaType(*pAmMediaType);
 bail_3:
 	pSampleGrabberIF_->Release();
 	pSampleGrabberIF_ = 0;
@@ -804,8 +814,174 @@ DirectShowSource::stop()
 }
 
 int
-DirectShowSource::bindFormat(const vidcap_fmt_info * fmtInfo)
+DirectShowSource::bindFormat(const vidcap_fmt_info * fmtNominal)
 {
+	// If we've already got one, free it
+	if ( nativeMediaType_ )
+		dshowMgr_->freeMediaType(*nativeMediaType_);
+
+	bool needsFpsEnforcement = false;
+	bool needsFmtConv = false;
+
+	int iCount = 0, iSize = 0;
+	HRESULT hr = pStreamConfig_->GetNumberOfCapabilities(&iCount, &iSize);
+
+	// Check the size to make sure we pass in the correct structure.
+	if (iSize != sizeof(VIDEO_STREAM_CONFIG_CAPS) )
+	{
+		log_error("capabilities struct is wrong size (%d not %d)\n",
+				iSize, sizeof(VIDEO_STREAM_CONFIG_CAPS));
+		return 1;
+	}
+
+	struct formatProperties
+	{
+		bool isSufficient;
+		bool needsFmtConversion;
+		bool needsFpsEnforcement;
+		AM_MEDIA_TYPE *mediaFormat;
+	};
+
+	struct formatProperties * candidateFmtProps =
+				new struct formatProperties [iCount];
+
+	// these will be filled-in by checkFormat()
+	vidcap_fmt_info * fmtNative = new vidcap_fmt_info [iCount];
+
+	// enumerate each NATIVE source format
+	bool itCanWork = false;
+	for (int iFormat = 0; iFormat < iCount; ++iFormat )
+	{
+		candidateFmtProps[iFormat].isSufficient = false;
+		candidateFmtProps[iFormat].needsFmtConversion = false;
+		candidateFmtProps[iFormat].needsFpsEnforcement = false;
+		candidateFmtProps[iFormat].mediaFormat = 0;
+
+		// evaluate each native source format
+		if ( checkFormat(fmtNominal, &fmtNative[iFormat], iFormat,
+					&(candidateFmtProps[iFormat].needsFmtConversion),
+					&(candidateFmtProps[iFormat].needsFpsEnforcement),
+					&(candidateFmtProps[iFormat].mediaFormat)) )
+		{
+			candidateFmtProps[iFormat].isSufficient = true;
+			itCanWork = true;
+		}
+	}
+
+	// NOTE: Will need to free unselected mediaFormats
+	//       before returning,  but hold onto the best 
+	//       (if any) candidate format
+
+	// Can ANY of this source's native formats
+	// satisfy the requested format (to be bound)?
+	if ( !itCanWork )
+	{
+		goto freeThenReturn;
+	}
+
+	// evaluate the possibilities
+
+	int bestFmtNum = -1;
+
+	// any that work without mods?
+	for ( int iFmt = 0; iFmt < iCount; ++iFmt )
+	{
+		if ( candidateFmtProps[iFmt].isSufficient &&
+			!candidateFmtProps[iFmt].needsFmtConversion &&
+			!candidateFmtProps[iFmt].needsFpsEnforcement )
+		{
+			// found a perfect match!
+			log_info("bindFormat: found a 'perfect' match (fmt #%d)\n", iFmt);
+
+			bestFmtNum = iFmt;
+			goto freeThenReturn;
+		}
+	}
+
+	// any that work without format conversion? but with framerate conversion?
+	for ( int iFmt = 0; iFmt < iCount; ++iFmt )
+	{
+		if ( candidateFmtProps[iFmt].isSufficient &&
+			!candidateFmtProps[iFmt].needsFmtConversion &&
+			 candidateFmtProps[iFmt].needsFpsEnforcement )
+		{
+			// found an okay match
+			log_info("bindFormat: found an 'okay' match (fmt #%d)\n", iFmt);
+
+			bestFmtNum = iFmt;
+			goto freeThenReturn;
+		}
+	}
+
+	// any that work with format conversion? but without framerate conversion?
+	for ( int iFmt = 0; iFmt < iCount; ++iFmt )
+	{
+		if ( candidateFmtProps[iFmt].isSufficient &&
+			 candidateFmtProps[iFmt].needsFmtConversion &&
+			!candidateFmtProps[iFmt].needsFpsEnforcement )
+		{
+			// found a so-so match
+			log_info("bindFormat: found a 'so-so' match (fmt #%d)\n", iFmt);
+
+			bestFmtNum = iFmt;
+			goto freeThenReturn;
+		}
+	}
+
+	// any that work with both caveats?
+	for ( int iFmt = 0; iFmt < iCount; ++iFmt )
+	{
+		if ( candidateFmtProps[iFmt].isSufficient &&
+			 candidateFmtProps[iFmt].needsFmtConversion &&
+			 candidateFmtProps[iFmt].needsFpsEnforcement )
+		{
+			// found a poor match
+			log_info("bindFormat: found a poor match (fmt #%d)\n", iFmt);
+
+			bestFmtNum = iFmt;
+			goto freeThenReturn;
+		}
+	}
+
+	log_error("bindFormat: coding ERROR\n");
+	itCanWork = false;
+
+freeThenReturn:
+
+	// Free all sufficient candidates (unless it's the the CHOSEN one)
+	for ( int iFmt = 0; iFmt < iCount; ++iFmt )
+	{
+		if ( candidateFmtProps[iFmt].isSufficient )
+		{
+			// NOT the chosen one?
+			if ( !itCanWork || iFmt != bestFmtNum )
+				dshowMgr_->freeMediaType(*candidateFmtProps[iFmt].mediaFormat);
+		}
+	}
+
+	// Can bind succeed?
+	if ( itCanWork )
+	{
+			// take note of native media type, fps, dimensions
+			nativeMediaType_ = candidateFmtProps[bestFmtNum].mediaFormat;
+			sourceContext_->fmt_native.fps_numerator =
+							fmtNative[bestFmtNum].fps_numerator;
+			sourceContext_->fmt_native.fps_denominator =
+							fmtNative[bestFmtNum].fps_denominator;
+			sourceContext_->fmt_native.width = fmtNative[bestFmtNum].width;
+			sourceContext_->fmt_native.height = fmtNative[bestFmtNum].height;
+			sourceContext_->fmt_native.fourcc = fmtNative[bestFmtNum].fourcc;
+
+			//FIXME: use these values NOW, instead of waiting for
+			//       capture to start()
+	}
+
+	delete [] candidateFmtProps;
+	delete [] fmtNative;
+
+	if ( !itCanWork )
+		return 1;
+
 	return 0;
 }
 
@@ -813,12 +989,173 @@ bool
 DirectShowSource::validateFormat(const vidcap_fmt_info * fmtNominal,
 		vidcap_fmt_info * fmtNative) const
 {
-	// TODO: actually validate
+	bool needsFpsEnforcement = false;
+	bool needsFmtConv = false;
 
-	return false;
+	int iCount = 0, iSize = 0;
+	HRESULT hr = pStreamConfig_->GetNumberOfCapabilities(&iCount, &iSize);
+
+	// Check the size to make sure we pass in the correct structure.
+	if (iSize != sizeof(VIDEO_STREAM_CONFIG_CAPS) )
+	{
+		log_error("capabilities struct is wrong size (%d not %d)\n",
+				iSize, sizeof(VIDEO_STREAM_CONFIG_CAPS));
+		return 0;
+	}
+
+	// enumerate each NATIVE format for this source
+	bool itWorks = false;
+	for (int iFormat = 0; iFormat < iCount; iFormat++)
+	{
+		AM_MEDIA_TYPE *mediaFormat = 0;
+
+		itWorks = checkFormat(fmtNominal, fmtNative, iFormat,
+					&needsFpsEnforcement, &needsFmtConv,
+					&mediaFormat);
+
+		if ( itWorks )
+		{
+			dshowMgr_->freeMediaType(*mediaFormat);
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
-//FIXME: should this be generic?
+// Evaluate one of perhaps several native formats for
+// suitability for providing the nominal format.
+// Fill-in output parameter 'mediaFormat'.
+bool
+DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
+		vidcap_fmt_info * fmtNative,
+		int formatNum,
+		bool *needsFramerateEnforcing, bool *needsFormatConversion,
+		AM_MEDIA_TYPE **mediaFormat) const
+{
+	// get video stream capabilities structure #(formatNum)
+	VIDEO_STREAM_CONFIG_CAPS scc;
+	AM_MEDIA_TYPE *pMediaType;
+	HRESULT hr = pStreamConfig_->GetStreamCaps(formatNum, &pMediaType,
+			(BYTE*)&scc);
+
+	if (FAILED(hr))
+	{
+		log_warn("checkFormat: failed getting stream capabilities [%d] (%d)\n",
+				formatNum + 1, hr);
+		return false;
+	}
+
+	// check resolution
+	if ( fmtNominal->width < scc.MinOutputSize.cx ||
+	     fmtNominal->height < scc.MinOutputSize.cy ||
+	     fmtNominal->width > scc.MaxOutputSize.cx ||
+	     fmtNominal->height > scc.MaxOutputSize.cy )
+	{
+		dshowMgr_->freeMediaType(*pMediaType);
+		return false;
+	}
+
+	bool matchesWidth = false;
+	for (int width = scc.MinOutputSize.cx; width <= scc.MaxOutputSize.cx;
+				width += scc.OutputGranularityX)
+	{
+		if ( width == fmtNominal->width )
+			matchesWidth = true;
+	}
+
+	bool matchesHeight = false;
+	for (int height = scc.MinOutputSize.cy; height <= scc.MaxOutputSize.cy;
+				height += scc.OutputGranularityY)
+	{
+		if ( height == fmtNominal->height )
+			matchesHeight = true;
+	}
+
+	if ( !matchesWidth || !matchesHeight )
+	{
+		dshowMgr_->freeMediaType(*pMediaType);
+		return false;
+	}
+
+	// calculate range of supported frame rates
+	double fpsMin = static_cast<double>( 1000000000 / scc.MaxFrameInterval)
+			/ 100.0;
+	double fpsMax = static_cast<double>( 1000000000 / scc.MinFrameInterval)
+			/ 100.0;
+
+	double fps = static_cast<double>(fmtNominal->fps_numerator) /
+		static_cast<double>(fmtNominal->fps_denominator);
+
+	// check framerate
+	if ( fps > fpsMax )
+	{
+		dshowMgr_->freeMediaType(*pMediaType);
+		return false;
+	}
+
+	if ( fps < fpsMin )
+		*needsFramerateEnforcing = true;
+
+	// check media type
+
+	int nativeFourcc = 0;
+	if ( mapDirectShowMediaTypeToVidcapFourcc(
+				pMediaType->subtype.Data1, nativeFourcc) )
+	{
+		dshowMgr_->freeMediaType(*pMediaType);
+		return false;
+	}
+
+	*needsFormatConversion = ( nativeFourcc != fmtNominal->fourcc );
+
+	if ( *needsFormatConversion && 
+			(conv_conversion_func_get(nativeFourcc, fmtNominal->fourcc) == 0) )
+	{
+			dshowMgr_->freeMediaType(*pMediaType);
+			return false;
+	}
+
+	// it's suitable. fill-in the native format values
+
+	fmtNative->width = fmtNominal->width;
+	fmtNative->height = fmtNominal->height;
+
+	if ( *needsFormatConversion )
+		fmtNative->fourcc = nativeFourcc;
+	else
+		fmtNative->fourcc = fmtNominal->fourcc;
+
+	if ( *needsFramerateEnforcing )
+	{
+		//FIXME: Use float. Drop numerator/denominator business.
+		fmtNative->fps_numerator = (int)fpsMax;
+		fmtNative->fps_denominator = 1;
+	}
+	else
+	{
+		fmtNative->fps_numerator = fmtNominal->fps_numerator;
+		fmtNative->fps_denominator = fmtNominal->fps_denominator;
+	}
+
+	/*
+	log_info("cf: can be satisfied with NATIVE format #%d: "
+			"'%s'  %dx%d  %d/%d fps\n",
+				formatNum,
+				vidcap_fourcc_string_get(fmtNative->fourcc),
+				fmtNative->width, fmtNative->height,
+				fmtNative->fps_numerator,
+				fmtNative->fps_denominator);
+	*/
+
+	// return this suitable media type
+	*mediaFormat = pMediaType;
+
+	//FIXME: adjust framerate and dimensions now - not at capture start time
+
+	return true;
+}
+
 void
 DirectShowSource::cancelCallbacks()
 {
@@ -838,11 +1175,7 @@ DirectShowSource::cancelCallbacks()
 
 	LeaveCriticalSection(&captureMutex_);
 
-	log_info("cancelled source's capture callbacks\n");
-
 	stop();
-
-	log_info("cancelled source's capture callbacks and stopped capture\n");
 }
 
 // Fake out interface queries
@@ -969,7 +1302,7 @@ DirectShowSource::mapDirectShowMediaTypeToVidcapFourcc(DWORD data, int & fourcc)
 {
 	switch ( data )
 	{
-	case 0xe436eb7e: // MEDIASUBTYPE_RGB32.Data1
+	case 0xe436eb7e: 
 		fourcc = VIDCAP_FOURCC_RGB32;
 		break;
 	case 0x30323449: // I420
@@ -989,7 +1322,7 @@ DirectShowSource::mapDirectShowMediaTypeToVidcapFourcc(DWORD data, int & fourcc)
 		fourcc = VIDCAP_FOURCC_YVU9;
 		break;
 	default:
-		log_warn("failed to map 0x%08x to fourcc\n", data);
+		log_warn("failed to map 0x%08x to vidcap fourcc\n", data);
 		return -1;
 	}
 
@@ -1002,7 +1335,7 @@ DirectShowSource::mapVidcapFourccToDirectShowMediaType(int fourcc, DWORD & data)
 	switch ( fourcc )
 	{
 	case VIDCAP_FOURCC_RGB32:
-		data = 0xe436eb7e; // MEDIASUBTYPE_RGB32.Data1
+		data = 0xe436eb7e;
 		break;
 	case VIDCAP_FOURCC_I420:
 		data = 0x30323449; // '024I' aka I420
@@ -1011,7 +1344,7 @@ DirectShowSource::mapVidcapFourccToDirectShowMediaType(int fourcc, DWORD & data)
 		data = 0x32595559;
 		break;
 	default:
-		log_warn("failed to map '%s' to DS media type\n",
+		log_warn("failed to map '%s' to DShow media type\n",
 				vidcap_fourcc_string_get(fourcc));
 		return -1;
 	}

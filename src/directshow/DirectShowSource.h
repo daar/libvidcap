@@ -55,7 +55,13 @@ public:
 
 private:
 	bool canConvertToRGB32();
+	bool checkFormat(const vidcap_fmt_info * fmtNominal,
+			vidcap_fmt_info * fmtNative,
+			int formatNum,
+			bool *needsFramerateEnforcing, bool *needsFormatConversion,
+			AM_MEDIA_TYPE **candidateMediaFormat) const;
 
+	// NOTE: this will soon be obsolete
 	AM_MEDIA_TYPE * getMediaType( CComPtr< IPin > pPin) const;
 	void printMediaFormatType(AM_MEDIA_TYPE *pMedia);
 
@@ -95,8 +101,11 @@ private:
 
 	IMediaControl * pMediaControlIF_;
 
+	AM_MEDIA_TYPE *nativeMediaType_;
+
 	// when necessary to convert source output format
-	IBaseFilter *pIntermediateFilter_;
+	//NOTE: these two will soon be obsolete
+	IBaseFilter *pIntermediateFilter_;	
 	DWORD intermediateMediaType_;
 
 	CRITICAL_SECTION  captureMutex_;
