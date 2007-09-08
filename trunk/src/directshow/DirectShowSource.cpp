@@ -144,7 +144,6 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 
 	// register filter graph - to monitor for errors during capture
 	// FIXME: Is this too early? Should we only do it during captures?
-	// FIXME: Consider renaming to filterGraphMediaEventInterface
 	dshowMgr_->registerSrcGraph(this, pMediaEventIF_);
 
 	InitializeCriticalSection(&captureMutex_);
@@ -245,39 +244,12 @@ DirectShowSource::start()
 		goto bail_3;
 	}
 
-	// Get the appropriate source media type
-	AM_MEDIA_TYPE * pAmMediaType = nativeMediaType_;
-	if ( !pAmMediaType )
-	{
-		log_error("failed to match media type\n");
-		goto bail_3;
-	}
-
-	// set the frame rate
-	VIDEOINFOHEADER * vih = (VIDEOINFOHEADER *) pAmMediaType->pbFormat;
-	vih->AvgTimePerFrame = 10000000 *
-		sourceContext_->fmt_native.fps_denominator /
-		sourceContext_->fmt_native.fps_numerator;
-
-	// set the dimensions
-	vih->bmiHeader.biWidth = sourceContext_->fmt_native.width;
-	vih->bmiHeader.biHeight = sourceContext_->fmt_native.height;
-
-	// set the stream's media type
-	hr = pStreamConfig_->SetFormat(pAmMediaType);
-	if ( FAILED(hr) )
-	{
-		log_error("failed setting stream format (%d)\n", hr);
-		goto bail_4;
-	}
-
 	// Set sample grabber's media type to match that of the source
-	//FIXME: do at bind time
-	hr = pSampleGrabberIF_->SetMediaType(pAmMediaType);
+	hr = pSampleGrabberIF_->SetMediaType(nativeMediaType_);
 	if ( FAILED(hr) )
 	{
 		log_error("failed to set grabber media type (%d)\n", hr);
-		goto bail_4;
+		goto bail_3;
 	}
 
 	hr = CoCreateInstance(CLSID_NullRenderer,
@@ -289,7 +261,7 @@ DirectShowSource::start()
 	if ( FAILED(hr) )
 	{
 		log_error("failed creating a NULL renderer (%d)\n", hr);
-		goto bail_4;
+		goto bail_3;
 	}
 
 	//FIXME: use actual device name
@@ -297,7 +269,7 @@ DirectShowSource::start()
 	if ( FAILED(hr) )
 	{
 		log_error("failed to add source (%d)\n", hr);
-		goto bail_5;
+		goto bail_4;
 	}
 
 	hr = pFilterGraph_->AddFilter(pSampleGrabber_, L"Sample Grabber");
@@ -305,14 +277,14 @@ DirectShowSource::start()
 	{
 		log_error("failed to add Sample Grabber to filter graph (%d)\n",
 				hr);
-		goto bail_5;
+		goto bail_4;
 	}
 
 	hr = pFilterGraph_->AddFilter(pNullRenderer_, L"NullRenderer");
 	if ( FAILED(hr) )
 	{
 		log_error("failed to add null renderer (%d)\n", hr);
-		goto bail_5;
+		goto bail_4;
 	}
 
 	hr = pCapGraphBuilder_->RenderStream(&PIN_CATEGORY_CAPTURE,
@@ -324,7 +296,7 @@ DirectShowSource::start()
 	{
 		log_error("failed to connect source, grabber "
 				"and null renderer (%d)\n", hr);
-		goto bail_5;
+		goto bail_4;
 	}
 
 	hr = pMediaControlIF_->Run();
@@ -343,12 +315,9 @@ DirectShowSource::start()
 		log_error("failed to STOP filter graph (%ul)\n", hr);
 	}
 
-bail_5:
+bail_4:
 	pNullRenderer_->Release();
 	pNullRenderer_ = 0;
-bail_4:
-	// free this at next bind time, and in destructor 
-	//dshowMgr_->freeMediaType(*pAmMediaType);
 bail_3:
 	pSampleGrabberIF_->Release();
 	pSampleGrabberIF_ = 0;
@@ -551,18 +520,35 @@ freeThenReturn:
 	// Can bind succeed?
 	if ( itCanWork )
 	{
-			// take note of native media type, fps, dimensions
-			nativeMediaType_ = candidateFmtProps[bestFmtNum].mediaFormat;
-			sourceContext_->fmt_native.fps_numerator =
-							fmtNative[bestFmtNum].fps_numerator;
-			sourceContext_->fmt_native.fps_denominator =
-							fmtNative[bestFmtNum].fps_denominator;
-			sourceContext_->fmt_native.width = fmtNative[bestFmtNum].width;
-			sourceContext_->fmt_native.height = fmtNative[bestFmtNum].height;
-			sourceContext_->fmt_native.fourcc = fmtNative[bestFmtNum].fourcc;
+		// take note of native media type, fps, dimensions
+		nativeMediaType_ = candidateFmtProps[bestFmtNum].mediaFormat;
 
-			//FIXME: use these values NOW, instead of waiting for
-			//       capture to start()
+		// set the frame rate
+		VIDEOINFOHEADER * vih = (VIDEOINFOHEADER *) nativeMediaType_->pbFormat;
+		vih->AvgTimePerFrame = 10000000 *
+			fmtNative[bestFmtNum].fps_denominator /
+			fmtNative[bestFmtNum].fps_numerator;
+
+		// set the dimensions
+		vih->bmiHeader.biWidth = fmtNative[bestFmtNum].width;
+		vih->bmiHeader.biHeight = fmtNative[bestFmtNum].height;
+
+		// set the stream's media type
+		hr = pStreamConfig_->SetFormat(nativeMediaType_);
+		if ( FAILED(hr) )
+		{
+			log_error("failed setting stream format (%d)\n", hr);
+			itCanWork = false;
+		}
+
+		// FIXME: is this necessary?
+		sourceContext_->fmt_native.fps_numerator =
+						fmtNative[bestFmtNum].fps_numerator;
+		sourceContext_->fmt_native.fps_denominator =
+						fmtNative[bestFmtNum].fps_denominator;
+		sourceContext_->fmt_native.width = fmtNative[bestFmtNum].width;
+		sourceContext_->fmt_native.height = fmtNative[bestFmtNum].height;
+		sourceContext_->fmt_native.fourcc = fmtNative[bestFmtNum].fourcc;
 	}
 
 	delete [] candidateFmtProps;
@@ -619,7 +605,8 @@ bool
 DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 		vidcap_fmt_info * fmtNative,
 		int formatNum,
-		bool *needsFramerateEnforcing, bool *needsFormatConversion,
+		bool *needsFramerateEnforcing,
+		bool *needsFormatConversion,
 		AM_MEDIA_TYPE **mediaFormat) const
 {
 	// get video stream capabilities structure #(formatNum)
@@ -650,7 +637,10 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 				width += scc.OutputGranularityX)
 	{
 		if ( width == fmtNominal->width )
+		{
 			matchesWidth = true;
+			break;
+		}
 	}
 
 	bool matchesHeight = false;
@@ -658,7 +648,10 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 				height += scc.OutputGranularityY)
 	{
 		if ( height == fmtNominal->height )
+		{
 			matchesHeight = true;
+			break;
+		}
 	}
 
 	if ( !matchesWidth || !matchesHeight )
@@ -698,22 +691,21 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 
 	*needsFormatConversion = ( nativeFourcc != fmtNominal->fourcc );
 
-	if ( *needsFormatConversion && 
-			(conv_conversion_func_get(nativeFourcc, fmtNominal->fourcc) == 0) )
+	if ( *needsFormatConversion )
 	{
+		if ( conv_conversion_func_get(nativeFourcc, fmtNominal->fourcc) == 0 )
+		{
 			dshowMgr_->freeMediaType(*pMediaType);
 			return false;
-	}
+		}
 
-	// it's suitable. fill-in the native format values
+		fmtNative->fourcc = nativeFourcc;
+	}
+	else
+		fmtNative->fourcc = fmtNominal->fourcc;
 
 	fmtNative->width = fmtNominal->width;
 	fmtNative->height = fmtNominal->height;
-
-	if ( *needsFormatConversion )
-		fmtNative->fourcc = nativeFourcc;
-	else
-		fmtNative->fourcc = fmtNominal->fourcc;
 
 	if ( *needsFramerateEnforcing )
 	{
@@ -727,20 +719,8 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 		fmtNative->fps_denominator = fmtNominal->fps_denominator;
 	}
 
-	/*
-	log_info("cf: can be satisfied with NATIVE format #%d: "
-			"'%s'  %dx%d  %d/%d fps\n",
-				formatNum,
-				vidcap_fourcc_string_get(fmtNative->fourcc),
-				fmtNative->width, fmtNative->height,
-				fmtNative->fps_numerator,
-				fmtNative->fps_denominator);
-	*/
-
 	// return this suitable media type
 	*mediaFormat = pMediaType;
-
-	//FIXME: adjust framerate and dimensions now - not at capture start time
 
 	return true;
 }

@@ -369,7 +369,7 @@ vidcap_format_bind(vidcap_src * src,
 
 	if ( !src_ctx->format_validate(src_ctx, fmt_info, &fmt_native) )
 	{
-		log_error("invalid format %dx%d %s %d/%d\n",
+		log_error("format not supported by source: %dx%d %s %d/%d fps\n",
 				fmt_info->width, fmt_info->height,
 				vidcap_fourcc_string_get(fmt_info->fourcc),
 				fmt_info->fps_numerator,
@@ -497,11 +497,11 @@ vidcap_fourcc_string_get(int fourcc)
 		case VIDCAP_FOURCC_YUY2:
 			return "yuy2";
 		case VIDCAP_FOURCC_RGB32:
-			return " rgb";
+			return "rgb32";
 		case VIDCAP_FOURCC_RGB24:
-			return " r24";
+			return "rgb24";
 		case VIDCAP_FOURCC_RGB555:
-			return "r555";
+			return "rgb555";
 		case VIDCAP_FOURCC_YVU9:
 			return "yvu9";
 		case VIDCAP_FOURCC_2VUY:
