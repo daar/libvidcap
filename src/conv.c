@@ -28,6 +28,7 @@
 int conv_2vuy_to_i420(int w, int h, const char * s, char * d, int ds);
 int conv_2vuy_to_yuy2(int w, int h, const char * s, char * d, int ds);
 int conv_rgb24_to_rgb32(int w, int h, const char * s, char * d, int ds);
+int conv_yvu9_to_i420(int w, int h, const char * s, char * d, int ds);
 
 struct conv_info
 {
@@ -48,6 +49,8 @@ static const struct conv_info conv_list[] =
 	{ VIDCAP_FOURCC_2VUY,  VIDCAP_FOURCC_YUY2,  conv_2vuy_to_yuy2 },
 	{ VIDCAP_FOURCC_2VUY,  VIDCAP_FOURCC_I420,  conv_2vuy_to_i420 },
 	{ VIDCAP_FOURCC_RGB24, VIDCAP_FOURCC_RGB32, conv_rgb24_to_rgb32 },
+
+	{ VIDCAP_FOURCC_YVU9,  VIDCAP_FOURCC_I420,  conv_yvu9_to_i420 },
 };
 
 static const int conv_list_len = sizeof(conv_list) / sizeof(struct conv_info);
