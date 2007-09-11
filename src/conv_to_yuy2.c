@@ -50,6 +50,9 @@ conv_2vuy_to_yuy2(int width, int height, const char * src,
 	unsigned int * d = (unsigned int *)dest;
 	const unsigned int * s = (const unsigned int *)src;
 
+	if ( dest_size < width * height * 2 )
+		return -1;
+
 	for ( i = 0; i < width * height / 2; ++i )
 	{
 		*d++ = ((*s & 0xff000000) >> 8) |

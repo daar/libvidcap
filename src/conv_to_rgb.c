@@ -23,6 +23,7 @@
  *
  */
 
+//#include <string.h>
 #include <vidcap/converters.h>
 
 enum {
@@ -163,6 +164,9 @@ int vidcap_yuy2_to_rgb32(int width, int height, const char * src,
 	unsigned int * d = (unsigned int *)dest;
 	int i, j;
 
+	if ( dest_size < width * height * 4 )
+		return -1;
+
 	if ( !tables_initialized )
 		init_yuv2rgb_tables();
 
@@ -194,12 +198,37 @@ int conv_rgb24_to_rgb32(int width, int height, const char * src,
 	int i;
 	unsigned int * d = (unsigned int *)dest;
 
+	if ( dest_size < width * height * 4 )
+		return -1;
+
 	for ( i = 0; i < width * height; ++i )
 	{
 		*d = 0xff000000;
 		*d |= ((unsigned char)(*src++));          // blue
 		*d |= ((unsigned char)(*src++)) << 8;	  // green
 		*d++ |= ((unsigned char)(*src++)) << 16;  // red
+	}
+
+	return 0;
+}
+
+int conv_bottom_up_rgb24_to_rgb32(int width, int height,
+		const char * src,
+		char * dest, int dest_size)
+{
+	int i;
+	unsigned int * d = (unsigned int *)dest;
+	const unsigned char *src_end = src - 1 + width * height * 3;
+
+	if ( dest_size < width * height * 4 )
+		return -1;
+
+	for ( i = 0; i < width * height; ++i )
+	{
+		*d = 0xff000000;
+		*d |= ((unsigned char)(*src_end--)) << 16;  // red
+		*d |= ((unsigned char)(*src_end--)) << 8;	  // green
+		*d++ |= ((unsigned char)(*src_end--));          // blue
 	}
 
 	return 0;
