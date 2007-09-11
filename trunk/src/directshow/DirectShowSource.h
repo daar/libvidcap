@@ -42,7 +42,7 @@ public:
 	int start();
 	int stop();
 	int bindFormat(const vidcap_fmt_info * fmtInfo);
-	bool validateFormat(const vidcap_fmt_info * fmtNominal,
+	int validateFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative) const;
 
 	void cancelCallbacks();
@@ -59,6 +59,9 @@ private:
 			int formatNum,
 			bool *needsFramerateEnforcing, bool *needsFormatConversion,
 			AM_MEDIA_TYPE **candidateMediaFormat) const;
+
+	bool findBestFormat(const vidcap_fmt_info * fmtNominal,
+			vidcap_fmt_info * fmtNative, AM_MEDIA_TYPE **mediaFormat) const;
 
 	// Fake out COM reference counting
 	STDMETHODIMP_(ULONG) AddRef() { return 2; }
