@@ -31,18 +31,14 @@
  */
 
 int
-vidcap_rgb32_to_i420(int width, int height,
-		const char * src,
-		char * dst)
+vidcap_rgb32_to_i420(int width, int height, const char * src, char * dst)
 {
 	log_error("vidcap_rgb32_to_i420() not implemented\n");
 	return -1;
 }
 
 int
-vidcap_yuy2_to_i420(int width, int height,
-		const char * src,
-		char * dst)
+vidcap_yuy2_to_i420(int width, int height, const char * src, char * dst)
 {
 	/* convert from a packed structure to a planar structure */
 	char * dst_y_even = dst;
@@ -86,9 +82,7 @@ vidcap_yuy2_to_i420(int width, int height,
  * same except where we find the yuv components.
  */
 int
-conv_2vuy_to_i420(int width, int height,
-		const char * src,
-		char * dst)
+conv_2vuy_to_i420(int width, int height, const char * src, char * dst)
 {
 	char * dst_y_even = dst;
 	char * dst_y_odd = dst + width;
@@ -127,9 +121,7 @@ conv_2vuy_to_i420(int width, int height,
  * are reversed and 4x4 subsampled, instead of 2x2
  */
 int
-conv_yvu9_to_i420(int width, int height,
-		const char * src,
-		char * dst)
+conv_yvu9_to_i420(int width, int height, const char * src, char * dst)
 {
 	char * dst_y = dst;
 	char * dst_u_even = dst + width * height;

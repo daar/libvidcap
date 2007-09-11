@@ -96,14 +96,12 @@ static void init_yuv2rgb_tables(void)
  * Dest should be width * height * 4 bytes in size.
  *
  * Based on the formulas found at http://en.wikipedia.org/wiki/YUV
- */
-
-/* NOTE: size of dest buffer must be >= width * height * 4
+ *
+ * NOTE: size of dest buffer must be >= width * height * 4
  */
 
 int
-vidcap_i420_to_rgb32(int width, int height, const char * src,
-		char * dest)
+vidcap_i420_to_rgb32(int width, int height, const char * src, char * dest)
 {
 	const unsigned char * y_even;
 	const unsigned char * y_odd;
@@ -158,8 +156,7 @@ vidcap_i420_to_rgb32(int width, int height, const char * src,
  * includes two luminance (y) components and a single red and blue
  * chroma (Cr and Cb aka v and u) sample use for both pixels. 
  */
-int vidcap_yuy2_to_rgb32(int width, int height, const char * src,
-		char * dest)
+int vidcap_yuy2_to_rgb32(int width, int height, const char * src, char * dest)
 {
 	unsigned int * d = (unsigned int *)dest;
 	int i, j;
@@ -189,37 +186,37 @@ int vidcap_yuy2_to_rgb32(int width, int height, const char * src,
 	return 0;
 }
 
-int conv_rgb24_to_rgb32(int width, int height, const char * src,
-		char * dest)
+int conv_rgb24_to_rgb32(int width, int height, const char * src, char * dest)
 {
 	int i;
 	unsigned int * d = (unsigned int *)dest;
+	const unsigned char * s = (const unsigned char *)src;
 
 	for ( i = 0; i < width * height; ++i )
 	{
 		*d = 0xff000000;
-		*d |= ((unsigned char)(*src++));          // blue
-		*d |= ((unsigned char)(*src++)) << 8;	  // green
-		*d++ |= ((unsigned char)(*src++)) << 16;  // red
+		*d |= *s++;           /* blue */
+		*d |= (*s++) << 8;    /* green */
+		*d++ |= (*s++) << 16; /* red */
 	}
 
 	return 0;
 }
 
 int conv_bottom_up_rgb24_to_rgb32(int width, int height,
-		const char * src,
-		char * dest)
+		const char * src, char * dest)
 {
 	int i;
 	unsigned int * d = (unsigned int *)dest;
-	const unsigned char *src_end = src - 1 + width * height * 3;
+	const unsigned char * src_end = (const unsigned char *)src +
+		width * height * 3 - 1;
 
 	for ( i = 0; i < width * height; ++i )
 	{
 		*d = 0xff000000;
-		*d |= ((unsigned char)(*src_end--)) << 16;  // red
-		*d |= ((unsigned char)(*src_end--)) << 8;	  // green
-		*d++ |= ((unsigned char)(*src_end--));          // blue
+		*d |= (*src_end--) << 16; /* red */
+		*d |= (*src_end--) << 8;  /* green */
+		*d++ |= *src_end--;       /* blue */
 	}
 
 	return 0;

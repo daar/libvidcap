@@ -38,8 +38,7 @@ enum vidcap_fourccs_extra
 	VIDCAP_FOURCC_BOTTOM_UP_RGB24  = 204,
 };
 
-typedef int (*conv_func)(int width, int height,
-		const char * src, char * dst);
+typedef int (*conv_func)(int width, int height, const char * src, char * dst);
 
 #ifdef __cplusplus
 extern "C" {
