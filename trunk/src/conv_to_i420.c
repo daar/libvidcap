@@ -23,6 +23,7 @@
  *
  */
 
+#include <string.h>
 #include <vidcap/converters.h>
 #include "logging.h"
 
@@ -50,7 +51,7 @@ vidcap_yuy2_to_i420(int width, int height,
 
 	int i, j;
 
-	if ( dest_size < width * height * 4 / 3 )
+	if ( dest_size < width * height * 3 / 2 )
 		return -1;
 
 	/* yuy2 has a vertical sampling period (for u and v)
@@ -98,7 +99,7 @@ conv_2vuy_to_i420(int width, int height,
 
 	int i, j;
 
-	if ( dest_size < width * height * 4 / 3 )
+	if ( dest_size < width * height * 3 / 2 )
 		return -1;
 
 	for ( i = 0; i < height / 2; ++i )
@@ -125,3 +126,50 @@ conv_2vuy_to_i420(int width, int height,
 	return 0;
 }
 
+/* yvu9 is like i420, but the u and v planes
+ * are reversed and 4x4 subsampled, instead of 2x2
+ */
+int
+conv_yvu9_to_i420(int width, int height,
+		const char * src,
+		char * dst, int dest_size)
+{
+	char * dst_y = dst;
+	char * dst_u_even = dst + width * height;
+	char * dst_u_odd = dst_u_even + width / 2;
+	char * dst_v_even = dst_u_even + width * height / 4;
+	char * dst_v_odd = dst_v_even + width / 2;
+	const char * src_y = src;
+	const char * src_v = src_y + width * height;
+	const char * src_u = src_v + width * height / 16;
+
+	int i, j;
+
+	if ( dest_size < width * height * 3 / 2 )
+		return -1;
+
+	memcpy(dst_y, src_y, height * width);
+
+	for ( i = 0; i < height / 4; ++i )
+	{
+		for ( j = 0; j < width / 4; ++j )
+		{
+			*dst_u_even++ = *src_u;
+			*dst_u_even++ = *src_u;
+			*dst_u_odd++ = *src_u;
+			*dst_u_odd++ = *src_u++;
+
+			*dst_v_even++ = *src_v;
+			*dst_v_even++ = *src_v;
+			*dst_v_odd++ = *src_v;
+			*dst_v_odd++ = *src_v++;
+		}
+
+		dst_u_even += width / 2;
+		dst_u_odd += width / 2;
+		dst_v_even += width / 2;
+		dst_v_odd += width / 2;
+	}
+
+	return 0;
+}
