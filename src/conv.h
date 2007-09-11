@@ -39,7 +39,7 @@ enum vidcap_fourccs_extra
 };
 
 typedef int (*conv_func)(int width, int height,
-		const char * src, char * dst, int dst_size);
+		const char * src, char * dst);
 
 #ifdef __cplusplus
 extern "C" {

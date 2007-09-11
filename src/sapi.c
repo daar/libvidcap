@@ -236,8 +236,7 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 					src_ctx->fmt_nominal.width,
 					src_ctx->fmt_nominal.height,
 					video_data,
-					src_ctx->fmt_conv_buf,
-					src_ctx->fmt_conv_buf_size) )
+					src_ctx->fmt_conv_buf) )
 		{
 			log_error("failed format conversion\n");
 			cap_info.error_status = -1;
