@@ -32,27 +32,27 @@ extern "C" {
 
 int
 vidcap_i420_to_rgb32(int width, int height, const char * src,
-		char * dest, int dest_size);
+		char * dest);
 
 int
 vidcap_i420_to_yuy2(int width, int height, const char * src,
-		char * dest, int dest_size);
+		char * dest);
 
 int
 vidcap_yuy2_to_i420(int width, int height, const char * src,
-		char * dest, int dest_size);
+		char * dest);
 
 int
 vidcap_yuy2_to_rgb32(int width, int height, const char * src,
-		char * dest, int dest_size);
+		char * dest);
 
 int
 vidcap_rgb32_to_i420(int width, int height, const char * src,
-		char * dest, int dest_size);
+		char * dest);
 
 int
 vidcap_rgb32_to_yuy2(int width, int height, const char * src,
-		char * dest, int dest_size);
+		char * dest);
 
 #ifdef __cplusplus
 }

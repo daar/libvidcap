@@ -26,9 +26,12 @@
 #include <vidcap/converters.h>
 #include "logging.h"
 
+/* NOTE: size of dest buffer must be >= width * height * 2
+ */
+
 int
 vidcap_rgb32_to_yuy2(int width, int height, const char * src,
-		char * dest, int dest_size)
+		char * dest)
 {
 	log_error("vidcap_rgb32_to_yuy2() not implemented\n");
 	return -1;
@@ -36,7 +39,7 @@ vidcap_rgb32_to_yuy2(int width, int height, const char * src,
 
 int
 vidcap_i420_to_yuy2(int width, int height, const char * src,
-		char * dest, int dest_size)
+		char * dest)
 {
 	log_error("vidcap_i420_to_yuy2() not implemented\n");
 	return -1;
@@ -44,14 +47,11 @@ vidcap_i420_to_yuy2(int width, int height, const char * src,
 
 int
 conv_2vuy_to_yuy2(int width, int height, const char * src,
-		char * dest, int dest_size)
+		char * dest)
 {
 	int i;
 	unsigned int * d = (unsigned int *)dest;
 	const unsigned int * s = (const unsigned int *)src;
-
-	if ( dest_size < width * height * 2 )
-		return -1;
 
 	for ( i = 0; i < width * height / 2; ++i )
 	{

@@ -25,11 +25,11 @@
 
 #include "conv.h"
 
-int conv_2vuy_to_i420(int w, int h, const char * s, char * d, int ds);
-int conv_2vuy_to_yuy2(int w, int h, const char * s, char * d, int ds);
-int conv_rgb24_to_rgb32(int w, int h, const char * s, char * d, int ds);
-int conv_yvu9_to_i420(int w, int h, const char * s, char * d, int ds);
-int conv_bottom_up_rgb24_to_rgb32(int w, int h, const char * s, char * d, int ds);
+int conv_2vuy_to_i420(int w, int h, const char * s, char * d);
+int conv_2vuy_to_yuy2(int w, int h, const char * s, char * d);
+int conv_rgb24_to_rgb32(int w, int h, const char * s, char * d);
+int conv_yvu9_to_i420(int w, int h, const char * s, char * d);
+int conv_bottom_up_rgb24_to_rgb32(int w, int h, const char * s, char * d);
 
 struct conv_info
 {

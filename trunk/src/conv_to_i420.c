@@ -27,10 +27,13 @@
 #include <vidcap/converters.h>
 #include "logging.h"
 
+/* NOTE: size of dest must be >= width * height * 3 / 2 
+ */
+
 int
 vidcap_rgb32_to_i420(int width, int height,
 		const char * src,
-		char * dst, int dest_size)
+		char * dst)
 {
 	log_error("vidcap_rgb32_to_i420() not implemented\n");
 	return -1;
@@ -39,7 +42,7 @@ vidcap_rgb32_to_i420(int width, int height,
 int
 vidcap_yuy2_to_i420(int width, int height,
 		const char * src,
-		char * dst, int dest_size)
+		char * dst)
 {
 	/* convert from a packed structure to a planar structure */
 	char * dst_y_even = dst;
@@ -50,9 +53,6 @@ vidcap_yuy2_to_i420(int width, int height,
 	const char * src_odd = src + width * 2;
 
 	int i, j;
-
-	if ( dest_size < width * height * 3 / 2 )
-		return -1;
 
 	/* yuy2 has a vertical sampling period (for u and v)
 	 * half that for i420. Will toss half of the
@@ -88,7 +88,7 @@ vidcap_yuy2_to_i420(int width, int height,
 int
 conv_2vuy_to_i420(int width, int height,
 		const char * src,
-		char * dst, int dest_size)
+		char * dst)
 {
 	char * dst_y_even = dst;
 	char * dst_y_odd = dst + width;
@@ -98,9 +98,6 @@ conv_2vuy_to_i420(int width, int height,
 	const char * src_odd = src + width * 2;
 
 	int i, j;
-
-	if ( dest_size < width * height * 3 / 2 )
-		return -1;
 
 	for ( i = 0; i < height / 2; ++i )
 	{
@@ -132,7 +129,7 @@ conv_2vuy_to_i420(int width, int height,
 int
 conv_yvu9_to_i420(int width, int height,
 		const char * src,
-		char * dst, int dest_size)
+		char * dst)
 {
 	char * dst_y = dst;
 	char * dst_u_even = dst + width * height;
@@ -144,9 +141,6 @@ conv_yvu9_to_i420(int width, int height,
 	const char * src_u = src_v + width * height / 16;
 
 	int i, j;
-
-	if ( dest_size < width * height * 3 / 2 )
-		return -1;
 
 	memcpy(dst_y, src_y, height * width);
 

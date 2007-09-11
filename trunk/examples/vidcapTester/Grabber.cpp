@@ -134,13 +134,13 @@ Grabber::captureCallback(vidcap_src *, vidcap_capture_info * cap_info)
 		rgb_buf.resize(width_ * height_ * 4);
 
 		vidcap_i420_to_rgb32(width_, height_, cap_info->video_data,
-				rgb_buf.data(), rgb_buf.size());
+				rgb_buf.data());
 		break;
 
 	case VIDCAP_FOURCC_YUY2:
 		rgb_buf.resize(width_ * height_ * 4);
 		vidcap_yuy2_to_rgb32(width_, height_, cap_info->video_data,
-				rgb_buf.data(), rgb_buf.size());
+				rgb_buf.data());
 
 		break;
 

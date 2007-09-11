@@ -23,7 +23,6 @@
  *
  */
 
-//#include <string.h>
 #include <vidcap/converters.h>
 
 enum {
@@ -98,9 +97,13 @@ static void init_yuv2rgb_tables(void)
  *
  * Based on the formulas found at http://en.wikipedia.org/wiki/YUV
  */
+
+/* NOTE: size of dest buffer must be >= width * height * 4
+ */
+
 int
 vidcap_i420_to_rgb32(int width, int height, const char * src,
-		char * dest, int dest_size)
+		char * dest)
 {
 	const unsigned char * y_even;
 	const unsigned char * y_odd;
@@ -109,9 +112,6 @@ vidcap_i420_to_rgb32(int width, int height, const char * src,
 	unsigned int *dst_even;
 	unsigned int *dst_odd;
 	int i, j;
-
-	if ( dest_size < width * height * 4 )
-		return -1;
 
 	if ( !tables_initialized )
 		init_yuv2rgb_tables();
@@ -159,13 +159,10 @@ vidcap_i420_to_rgb32(int width, int height, const char * src,
  * chroma (Cr and Cb aka v and u) sample use for both pixels. 
  */
 int vidcap_yuy2_to_rgb32(int width, int height, const char * src,
-		char * dest, int dest_size)
+		char * dest)
 {
 	unsigned int * d = (unsigned int *)dest;
 	int i, j;
-
-	if ( dest_size < width * height * 4 )
-		return -1;
 
 	if ( !tables_initialized )
 		init_yuv2rgb_tables();
@@ -193,13 +190,10 @@ int vidcap_yuy2_to_rgb32(int width, int height, const char * src,
 }
 
 int conv_rgb24_to_rgb32(int width, int height, const char * src,
-		char * dest, int dest_size)
+		char * dest)
 {
 	int i;
 	unsigned int * d = (unsigned int *)dest;
-
-	if ( dest_size < width * height * 4 )
-		return -1;
 
 	for ( i = 0; i < width * height; ++i )
 	{
@@ -214,14 +208,11 @@ int conv_rgb24_to_rgb32(int width, int height, const char * src,
 
 int conv_bottom_up_rgb24_to_rgb32(int width, int height,
 		const char * src,
-		char * dest, int dest_size)
+		char * dest)
 {
 	int i;
 	unsigned int * d = (unsigned int *)dest;
 	const unsigned char *src_end = src - 1 + width * height * 3;
-
-	if ( dest_size < width * height * 4 )
-		return -1;
 
 	for ( i = 0; i < width * height; ++i )
 	{
