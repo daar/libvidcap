@@ -81,7 +81,6 @@ private:
 	BufferCB( double dblSampleTime, BYTE * pBuffer, long lBufferSize );
 
 	static int mapDirectShowMediaTypeToVidcapFourcc(DWORD data, int & fourcc);
-	static int mapVidcapFourccToDirectShowMediaType(int fourcc, DWORD & data);
 
 private:
 	struct sapi_src_context * sourceContext_;

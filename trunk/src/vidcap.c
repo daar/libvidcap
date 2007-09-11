@@ -500,6 +500,8 @@ vidcap_fourcc_string_get(int fourcc)
 			return "rgb32";
 		case VIDCAP_FOURCC_RGB24:
 			return "rgb24";
+		case VIDCAP_FOURCC_BOTTOM_UP_RGB24:
+			return "bottom_up_rgb24";
 		case VIDCAP_FOURCC_RGB555:
 			return "rgb555";
 		case VIDCAP_FOURCC_YVU9:

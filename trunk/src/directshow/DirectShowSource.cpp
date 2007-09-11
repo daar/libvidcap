@@ -776,7 +776,7 @@ DirectShowSource::mapDirectShowMediaTypeToVidcapFourcc(DWORD data, int & fourcc)
 		fourcc = VIDCAP_FOURCC_YUY2;
 		break;
 	case 0xe436eb7d:
-		fourcc = VIDCAP_FOURCC_RGB24;
+		fourcc = VIDCAP_FOURCC_BOTTOM_UP_RGB24;
 		break;
 	case 0xe436eb7c:
 		fourcc = VIDCAP_FOURCC_RGB555;
@@ -786,29 +786,6 @@ DirectShowSource::mapDirectShowMediaTypeToVidcapFourcc(DWORD data, int & fourcc)
 		break;
 	default:
 		log_warn("failed to map 0x%08x to vidcap fourcc\n", data);
-		return -1;
-	}
-
-	return 0;
-}
-
-int
-DirectShowSource::mapVidcapFourccToDirectShowMediaType(int fourcc, DWORD & data)
-{
-	switch ( fourcc )
-	{
-	case VIDCAP_FOURCC_RGB32:
-		data = 0xe436eb7e;
-		break;
-	case VIDCAP_FOURCC_I420:
-		data = 0x30323449; // '024I' aka I420
-		break;
-	case VIDCAP_FOURCC_YUY2:
-		data = 0x32595559;
-		break;
-	default:
-		log_warn("failed to map '%s' to DShow media type\n",
-				vidcap_fourcc_string_get(fourcc));
 		return -1;
 	}
 
