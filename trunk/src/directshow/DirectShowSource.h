@@ -53,6 +53,8 @@ public:
 	}
 
 private:
+	int setupCaptureGraphFoo();
+	void cleanupCaptureGraphFoo();
 	bool checkFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative,
 			int formatNum,
