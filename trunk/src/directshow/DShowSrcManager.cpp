@@ -58,7 +58,8 @@ DShowSrcManager::~DShowSrcManager()
 {
 	delete graphMon_;
 
-	sourceIDs_.erase( sourceIDs_.begin(), sourceIDs_.end() );
+	acquiredSourceIDs_.erase( acquiredSourceIDs_.begin(),
+			acquiredSourceIDs_.end() );
 	srcGraphList_.erase( srcGraphList_.begin(), srcGraphList_.end() );
 
 	CoUninitialize();
@@ -157,7 +158,7 @@ DShowSrcManager::cancelSrcCaptureCallback(IMediaEventEx *pME, void *ctx)
 }
 
 int
-DShowSrcManager::scan(struct sapi_src_list * srcList)
+DShowSrcManager::scan(struct sapi_src_list * srcList) const
 {
 	//FIXME: consider multiple sources per device
 
@@ -254,9 +255,9 @@ bool
 DShowSrcManager::okayToBuildSource(const char *id)
 {
 	// Enforce exclusive access to a source
-	for ( unsigned int i = 0; i < sourceIDs_.size(); i++ )
+	for ( unsigned int i = 0; i < acquiredSourceIDs_.size(); i++ )
 	{
-		if ( !strcmp(sourceIDs_[i], id) )
+		if ( !strcmp(acquiredSourceIDs_[i], id) )
 		{
 			// a source with this id already exists - and was acquired
 			log_warn("source already acquired: '%s'\n", id);
@@ -265,20 +266,20 @@ DShowSrcManager::okayToBuildSource(const char *id)
 	}
 
 	// add source to collection
-	sourceIDs_.push_back(id);
+	acquiredSourceIDs_.push_back(id);
 
 	return true;
 }
 
 void DShowSrcManager::sourceReleased(const char *id)
 {
-	for ( unsigned int i = 0; i < sourceIDs_.size(); i++ )
+	for ( unsigned int i = 0; i < acquiredSourceIDs_.size(); i++ )
 	{
-		if ( !strcmp(sourceIDs_[i], id) )
+		if ( !strcmp(acquiredSourceIDs_[i], id) )
 		{
 			// found source with matching id
 
-			sourceIDs_.erase( sourceIDs_.begin() + i );
+			acquiredSourceIDs_.erase( acquiredSourceIDs_.begin() + i );
 
 			return;
 		}
@@ -287,30 +288,10 @@ void DShowSrcManager::sourceReleased(const char *id)
 	log_warn("couldn't find source '%s' to release\n", id);
 }
 
-IPin *
-DShowSrcManager::getOutPin( IBaseFilter * pFilter, int nPin )
-{
-	CComPtr<IPin> pComPin = 0;
-
-	getPin(pFilter, PINDIR_OUTPUT, nPin, &pComPin);
-
-	return pComPin;
-}
-
-void
-DShowSrcManager::freeMediaType(AM_MEDIA_TYPE& mt)
-{
-	if ( mt.cbFormat != 0 )
-		CoTaskMemFree((PVOID)mt.pbFormat);
-
-	if ( mt.pUnk != NULL )
-		mt.pUnk->Release();
-}
-
 bool
 DShowSrcManager::getJustCapDevice(const char *devLongName,
 		IBindCtx **ppBindCtx,
-		IMoniker **ppMoniker)
+		IMoniker **ppMoniker) const
 {
 	HRESULT hr;
 
@@ -395,7 +376,7 @@ DShowSrcManager::getJustCapDevice(const char *devLongName,
 
 void
 DShowSrcManager::sprintDeviceInfo(IMoniker * pM, IBindCtx * pbc,
-		char* idBuff, char *descBuff, int buffsSize)
+		char* idBuff, char *descBuff, int buffsSize) const
 {
 	USES_CONVERSION;
 
@@ -454,16 +435,18 @@ DShowSrcManager::sprintDeviceInfo(IMoniker * pM, IBindCtx * pbc,
 }
 
 IPin *
-DShowSrcManager::getInPin( IBaseFilter * pFilter, int nPin )
+DShowSrcManager::getOutPin( IBaseFilter * pFilter, int nPin ) const
 {
 	CComPtr<IPin> pComPin = 0;
-	getPin(pFilter, PINDIR_INPUT, nPin, &pComPin);
+
+	getPin(pFilter, PINDIR_OUTPUT, nPin, &pComPin);
+
 	return pComPin;
 }
 
 HRESULT
 DShowSrcManager::getPin( IBaseFilter * pFilter, PIN_DIRECTION dirrequired,
-			int iNum, IPin **ppPin)
+			int iNum, IPin **ppPin) const
 {
 	*ppPin = NULL;
 
@@ -505,7 +488,7 @@ DShowSrcManager::getPin( IBaseFilter * pFilter, PIN_DIRECTION dirrequired,
 // Allocates and returns the friendlyName and displayName for a device
 int
 DShowSrcManager::getDeviceInfo(IMoniker * pM, IBindCtx * pbc,
-		char** easyName, char **longName)
+		char** easyName, char **longName) const
 {
 	USES_CONVERSION;
 

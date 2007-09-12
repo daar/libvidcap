@@ -173,7 +173,7 @@ DirectShowSource::~DirectShowSource()
 	dshowMgr_->unregisterSrcGraph(pMediaEventIF_);
 
 	if ( nativeMediaType_ )
-		dshowMgr_->freeMediaType(*nativeMediaType_);
+		freeMediaType(*nativeMediaType_);
 
 	// These below were initialized in constructor
 	pMediaEventIF_->Release();
@@ -380,7 +380,7 @@ DirectShowSource::validateFormat(const vidcap_fmt_info * fmtNominal,
 	if ( !findBestFormat(fmtNominal, fmtNative, &mediaFormat) )
 		return 0;
 
-	dshowMgr_->freeMediaType(*mediaFormat);
+	freeMediaType(*mediaFormat);
 	return 1;
 }
 
@@ -392,7 +392,7 @@ DirectShowSource::bindFormat(const vidcap_fmt_info * fmtNominal)
 	// If we've already got one, free it
 	if ( nativeMediaType_ )
 	{
-		dshowMgr_->freeMediaType(*nativeMediaType_);
+		freeMediaType(*nativeMediaType_);
 		nativeMediaType_ = 0;
 	}
 
@@ -415,7 +415,7 @@ DirectShowSource::bindFormat(const vidcap_fmt_info * fmtNominal)
 	{
 		log_error("failed setting stream format (%d)\n", hr);
 
-		dshowMgr_->freeMediaType(*nativeMediaType_);
+		freeMediaType(*nativeMediaType_);
 		nativeMediaType_ = 0;
 
 		return 1;
@@ -549,7 +549,7 @@ freeThenReturn:
 		{
 			// NOT the chosen one?
 			if ( !itCanWork || iFmt != bestFmtNum )
-				dshowMgr_->freeMediaType(*candidateFmtProps[iFmt].mediaFormat);
+				freeMediaType(*candidateFmtProps[iFmt].mediaFormat);
 		}
 	}
 
@@ -604,7 +604,7 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 	     fmtNominal->width > scc.MaxOutputSize.cx ||
 	     fmtNominal->height > scc.MaxOutputSize.cy )
 	{
-		dshowMgr_->freeMediaType(*pMediaType);
+		freeMediaType(*pMediaType);
 		return false;
 	}
 
@@ -632,7 +632,7 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 
 	if ( !matchesWidth || !matchesHeight )
 	{
-		dshowMgr_->freeMediaType(*pMediaType);
+		freeMediaType(*pMediaType);
 		return false;
 	}
 
@@ -648,7 +648,7 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 	// check framerate
 	if ( fps > fpsMax )
 	{
-		dshowMgr_->freeMediaType(*pMediaType);
+		freeMediaType(*pMediaType);
 		return false;
 	}
 
@@ -661,7 +661,7 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 	if ( mapDirectShowMediaTypeToVidcapFourcc(
 				pMediaType->subtype.Data1, nativeFourcc) )
 	{
-		dshowMgr_->freeMediaType(*pMediaType);
+		freeMediaType(*pMediaType);
 		return false;
 	}
 
@@ -671,7 +671,7 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 	{
 		if ( conv_conversion_func_get(nativeFourcc, fmtNominal->fourcc) == 0 )
 		{
-			dshowMgr_->freeMediaType(*pMediaType);
+			freeMediaType(*pMediaType);
 			return false;
 		}
 	}
@@ -700,6 +700,16 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 }
 
 void
+DirectShowSource::freeMediaType(AM_MEDIA_TYPE &mediaType) const
+{
+	if ( mediaType.cbFormat != 0 )
+		CoTaskMemFree((PVOID)mediaType.pbFormat);
+
+	if ( mediaType.pUnk != NULL )
+		mediaType.pUnk->Release();
+}
+
+void
 DirectShowSource::cancelCallbacks()
 {
 	// serialize with normal capture callbacks
@@ -721,7 +731,6 @@ DirectShowSource::cancelCallbacks()
 	stop();
 }
 
-// Fake out interface queries
 STDMETHODIMP
 DirectShowSource::QueryInterface(REFIID riid, void ** ppv)
 {
@@ -737,8 +746,7 @@ DirectShowSource::QueryInterface(REFIID riid, void ** ppv)
 	return E_NOINTERFACE;
 }
 
-// The sample grabber is calling us back on its deliver thread.
-// This is NOT the main app thread!
+// The sample grabber calls us back from its deliver thread
 STDMETHODIMP
 DirectShowSource::BufferCB( double dblSampleTime, BYTE * pBuff, long buffSize )
 {

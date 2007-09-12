@@ -47,8 +47,7 @@ public:
 
 	void cancelCallbacks();
 
-	const char *
-	getID() const
+	const char * getID() const
 	{
 		return sourceContext_->src_info.identifier;
 	}
@@ -63,20 +62,20 @@ private:
 	bool findBestFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative, AM_MEDIA_TYPE **mediaFormat) const;
 
-	// Fake out COM reference counting
+	void freeMediaType(AM_MEDIA_TYPE &) const;
+
+	// Fake out COM
 	STDMETHODIMP_(ULONG) AddRef() { return 2; }
 	STDMETHODIMP_(ULONG) Release() { return 1; }
+	STDMETHODIMP QueryInterface(REFIID riid, void ** ppv);
 
-	// Fake out interface querying
-	STDMETHODIMP
-	QueryInterface(REFIID riid, void ** ppv);
+	// Not used
+	STDMETHODIMP SampleCB( double SampleTime, IMediaSample * pSample )
+	{
+		return S_OK;
+	}
 
-	// We don't implement this one
-	STDMETHODIMP
-	SampleCB( double SampleTime, IMediaSample * pSample ) { return S_OK; }
-
-	// The sample grabber is calling us back on its deliver thread.
-	// This is NOT the main app thread
+	// The sample grabber calls us back from its deliver thread
 	STDMETHODIMP
 	BufferCB( double dblSampleTime, BYTE * pBuffer, long lBufferSize );
 
@@ -85,7 +84,6 @@ private:
 private:
 	struct sapi_src_context * sourceContext_;
 	DShowSrcManager * dshowMgr_;
-
 	IBaseFilter * pSource_;
 	ICaptureGraphBuilder2 *pCapGraphBuilder_;
 	IAMStreamConfig * pStreamConfig_;
@@ -94,11 +92,8 @@ private:
 	IBaseFilter * pSampleGrabber_;
 	ISampleGrabber * pSampleGrabberIF_;
 	IBaseFilter * pNullRenderer_;
-
 	IMediaControl * pMediaControlIF_;
-
 	AM_MEDIA_TYPE *nativeMediaType_;
-
 	CRITICAL_SECTION  captureMutex_;
 	bool stoppingCapture_;
 };
