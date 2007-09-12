@@ -38,7 +38,7 @@ protected:
 
 public:
 	static  DShowSrcManager * instance();
-	int     scan(struct sapi_src_list *);
+	int     scan(struct sapi_src_list *) const;
 
 	// for device event notifications (additions and removals)
 	int     registerNotifyCallback(void *);
@@ -51,12 +51,9 @@ public:
 	typedef bool (*cancelCallbackFunc)(IMediaEventEx *, void *);
 	static bool cancelSrcCaptureCallback(IMediaEventEx *, void *);
 
-	IPin *  getOutPin( IBaseFilter *, int);
-	IPin *  getInPin( IBaseFilter *, int);
-	void    freeMediaType(AM_MEDIA_TYPE& mt);
 	bool    getJustCapDevice(const char *devLongName,
 				IBindCtx **ppBindCtx,
-				IMoniker **ppMoniker);
+				IMoniker **ppMoniker) const;
 	bool    okayToBuildSource(const char *);
 	void    sourceReleased(const char *id);
 	void    release();
@@ -64,7 +61,7 @@ public:
 private:
 	static  DShowSrcManager *instance_;
 	int     numRefs_;
-	std::vector<const char *> sourceIDs_;
+	std::vector<const char *> acquiredSourceIDs_;
 
 	DevMonitor devMon_;
 	GraphMonitor *graphMon_;
@@ -79,10 +76,11 @@ private:
 	std::vector<srcGraphContext *> srcGraphList_;
 
 private:
-	HRESULT getPin( IBaseFilter *, PIN_DIRECTION, int, IPin **);
+	IPin *  getOutPin( IBaseFilter *, int) const;
+	HRESULT getPin( IBaseFilter *, PIN_DIRECTION, int, IPin **) const;
 	int     getDeviceInfo(IMoniker * pM, IBindCtx * pbc,
-						char** easyName, char **longName);
-	void    sprintDeviceInfo(IMoniker *, IBindCtx *, char *, char *, int);
+						char** easyName, char **longName) const;
+	void    sprintDeviceInfo(IMoniker *, IBindCtx *, char *, char *, int) const;
 };
 
 #endif
