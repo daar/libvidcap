@@ -50,7 +50,8 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 	  pSampleGrabberIF_(0),
 	  pNullRenderer_(0),
 	  pMediaControlIF_(0),
-	  nativeMediaType_(0)
+	  nativeMediaType_(0),
+	  captureIsSetup_(false)
 {
 	if ( !dshowMgr_ )
 	{
@@ -141,13 +142,23 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 		goto constructionFailure;
 	}
 
+	hr = pFilterGraph_->QueryInterface(IID_IMediaControl,
+			(void **)&pMediaControlIF_);
+	if ( FAILED(hr) )
+	{
+		log_error("failed getting Media Control interface (%d)\n", hr);
+		goto constructionFailure;
+	}
+
 	// register filter graph - to monitor for errors during capture
-	// FIXME: Is this too early? Should we only do it during captures?
-	dshowMgr_->registerSrcGraph(this, pMediaEventIF_);
+	dshowMgr_->registerSrcGraph(src->src_info.identifier, this, pMediaEventIF_);
 
 	return;
 
 constructionFailure:
+
+	if ( pMediaControlIF_ )
+		pMediaControlIF_->Release();
 
 	if ( pFilterGraph_ )
 		pFilterGraph_->Release();
@@ -169,12 +180,14 @@ DirectShowSource::~DirectShowSource()
 
 	cleanupCaptureGraphFoo();
 
-	dshowMgr_->unregisterSrcGraph(pMediaEventIF_);
-
 	if ( nativeMediaType_ )
 		freeMediaType(*nativeMediaType_);
 
 	// These below were initialized in constructor
+	if ( pMediaControlIF_ )
+		pMediaControlIF_->Release();
+	pMediaControlIF_ = 0;
+
 	pMediaEventIF_->Release();
 
 	pFilterGraph_->Release();
@@ -203,25 +216,15 @@ DirectShowSource::cleanupCaptureGraphFoo()
 		pSampleGrabber_->Release();
 	pSampleGrabber_ = 0;
 
-	if ( pMediaControlIF_ )
-		pMediaControlIF_->Release();
-	pMediaControlIF_ = 0;
+	captureIsSetup_ = false;
 }
 
 int
 DirectShowSource::setupCaptureGraphFoo()
 {
-	if ( !pMediaControlIF_ ) 
+	if ( !captureIsSetup_ ) 
 	{
-		HRESULT hr = pFilterGraph_->QueryInterface(IID_IMediaControl,
-				(void **)&pMediaControlIF_);
-		if ( FAILED(hr) )
-		{
-			log_error("failed getting Media Control interface (%d)\n", hr);
-			return -1;
-		}
-
-		hr = CoCreateInstance(CLSID_SampleGrabber,
+		HRESULT hr = CoCreateInstance(CLSID_SampleGrabber,
 				NULL,
 				CLSCTX_INPROC_SERVER,
 				IID_IBaseFilter,
@@ -229,7 +232,7 @@ DirectShowSource::setupCaptureGraphFoo()
 		if ( FAILED(hr) )
 		{
 			log_error("failed creating Sample Grabber (%d)\n", hr);
-			goto bail_1;
+			return -1;
 		}
 
 		hr = pSampleGrabber_->QueryInterface(IID_ISampleGrabber,
@@ -237,7 +240,7 @@ DirectShowSource::setupCaptureGraphFoo()
 		if ( FAILED(hr) )
 		{
 			log_error("failed getting ISampleGrabber interface (%d)\n", hr);
-			goto bail_2;
+			goto bail_1;
 		}
 
 		// Capture more than once
@@ -245,14 +248,14 @@ DirectShowSource::setupCaptureGraphFoo()
 		if ( FAILED(hr) )
 		{
 			log_error("failed SetOneShot (%d)\n", hr);
-			goto bail_3;
+			goto bail_2;
 		}
 
 		hr = pSampleGrabberIF_->SetBufferSamples(FALSE);
 		if ( FAILED(hr) )
 		{
 			log_error("failed SetBufferSamples (%d)\n", hr);
-			goto bail_3;
+			goto bail_2;
 		}
 
 		// set which callback type and function to use
@@ -260,7 +263,7 @@ DirectShowSource::setupCaptureGraphFoo()
 		if ( FAILED(hr) )
 		{
 			log_error("failed to set callback (%d)\n", hr);
-			goto bail_3;
+			goto bail_2;
 		}
 
 		// Set sample grabber's media type to match that of the source
@@ -268,7 +271,7 @@ DirectShowSource::setupCaptureGraphFoo()
 		if ( FAILED(hr) )
 		{
 			log_error("failed to set grabber media type (%d)\n", hr);
-			goto bail_3;
+			goto bail_2;
 		}
 
 		hr = CoCreateInstance(CLSID_NullRenderer,
@@ -280,7 +283,7 @@ DirectShowSource::setupCaptureGraphFoo()
 		if ( FAILED(hr) )
 		{
 			log_error("failed creating a NULL renderer (%d)\n", hr);
-			goto bail_3;
+			goto bail_2;
 		}
 
 		//FIXME: use actual device name
@@ -288,7 +291,7 @@ DirectShowSource::setupCaptureGraphFoo()
 		if ( FAILED(hr) )
 		{
 			log_error("failed to add source (%d)\n", hr);
-			goto bail_4;
+			goto bail_3;
 		}
 
 		hr = pFilterGraph_->AddFilter(pSampleGrabber_, L"Sample Grabber");
@@ -296,14 +299,14 @@ DirectShowSource::setupCaptureGraphFoo()
 		{
 			log_error("failed to add Sample Grabber to filter graph (%d)\n",
 					hr);
-			goto bail_4;
+			goto bail_3;
 		}
 
 		hr = pFilterGraph_->AddFilter(pNullRenderer_, L"NullRenderer");
 		if ( FAILED(hr) )
 		{
 			log_error("failed to add null renderer (%d)\n", hr);
-			goto bail_4;
+			goto bail_3;
 		}
 
 		hr = pCapGraphBuilder_->RenderStream(&PIN_CATEGORY_CAPTURE,
@@ -315,24 +318,23 @@ DirectShowSource::setupCaptureGraphFoo()
 		{
 			log_error("failed to connect source, grabber "
 					"and null renderer (%d)\n", hr);
-			goto bail_4;
+			goto bail_3;
 		}
+
+		captureIsSetup_ = true;
 	}
 
 	return 0;
 
-bail_4:
+bail_3:
 	pNullRenderer_->Release();
 	pNullRenderer_ = 0;
-bail_3:
+bail_2:
 	pSampleGrabberIF_->Release();
 	pSampleGrabberIF_ = 0;
-bail_2:
+bail_1:
 	pSampleGrabber_->Release();
 	pSampleGrabber_ = 0;
-bail_1:
-	pMediaControlIF_->Release();
-	pMediaControlIF_ = 0;
 
 	return -1;
 }
@@ -359,20 +361,18 @@ DirectShowSource::start()
 int
 DirectShowSource::stop()
 {
-	int ret = 0;
-
-	if ( pMediaControlIF_ )
+	if ( captureIsSetup_ )
 	{
 		HRESULT hr = pMediaControlIF_->Stop();
 		if ( FAILED(hr) )
 		{
 			log_error("failed to STOP the filter graph (0x%0x)\n", hr);
 
-			ret = -1;
+			return -1;
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 int
@@ -718,11 +718,11 @@ DirectShowSource::freeMediaType(AM_MEDIA_TYPE &mediaType) const
 void
 DirectShowSource::cancelCallbacks()
 {
-	// have capture callbacks already been cancelled?
+	// have buffer callbacks already been cancelled?
 	if ( !sourceContext_->capture_callback )
 		return;
 
-	// stop callbacks BEFORE thinking of
+	// stop callbacks before thinking of 
 	// touching sourceContext_->capture_callback
 	stop();
 
