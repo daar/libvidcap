@@ -43,7 +43,7 @@ static const char * description = "Video for Linux (v4l) video capture API";
 
 enum
 {
-	DEVICE_PATH_MAX = 128,
+	device_path_max = 128,
 	v4l_fps_mask = 0x003f0000,
 	v4l_fps_shift = 16,
 };
@@ -58,7 +58,7 @@ struct sapi_v4l_context
 struct sapi_v4l_src_context
 {
 	int fd;
-	char device_path[DEVICE_PATH_MAX];
+	char device_path[device_path_max];
 	int channel;
 
 	struct video_capability caps;
@@ -256,7 +256,7 @@ static int
 scan_sources(struct sapi_context * sapi_ctx, struct sapi_src_list * src_list)
 {
 	static const char * device_prefix = "/dev/video";
-	char device_path[DEVICE_PATH_MAX];
+	char device_path[device_path_max];
 	int list_len = 0;
 	int i;
 
@@ -356,6 +356,22 @@ capture_thread_proc(void * data)
 
 		++capture_frame_count;
 	}
+
+	/* Sync with the last frame when capture has stopped (since we
+	 * have overlapped capture kickoffs).
+	 */
+	{
+		const unsigned int capture_frame =
+			capture_frame_count % v4l_src_ctx->mbuf.frames;
+
+		if ( ioctl( v4l_src_ctx->fd, VIDIOCSYNC,
+					&capture_frame ) == -1 )
+		{
+			log_error("failed VIDIOCSYNC (2) %d\n", errno);
+			goto bail;
+		}
+	}
+
 
 	if ( munmap((void *)fb_base, v4l_src_ctx->mbuf.size) == -1 )
 	{
