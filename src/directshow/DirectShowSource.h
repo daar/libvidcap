@@ -96,6 +96,7 @@ private:
 	IBaseFilter * pNullRenderer_;
 	IMediaControl * pMediaControlIF_;
 	AM_MEDIA_TYPE *nativeMediaType_;
+	bool captureIsSetup_;
 };
 
 #endif

@@ -38,10 +38,14 @@
 #include "DirectShowSource.h"
 
 DShowSrcManager * DShowSrcManager::instance_ = 0;
+CRITICAL_SECTION DShowSrcManager::sourceDestructionMutex_;
 
 DShowSrcManager::DShowSrcManager()
 	: numRefs_(0)
 {
+	// one mutex for all graphMonitors
+	InitializeCriticalSection(&sourceDestructionMutex_);
+
 	graphMon_ = new GraphMonitor(
 			(cancelCallbackFunc)&DShowSrcManager::cancelSrcCaptureCallback,
 					this);
@@ -58,11 +62,11 @@ DShowSrcManager::~DShowSrcManager()
 {
 	delete graphMon_;
 
-	acquiredSourceIDs_.erase( acquiredSourceIDs_.begin(),
-			acquiredSourceIDs_.end() );
 	srcGraphList_.erase( srcGraphList_.begin(), srcGraphList_.end() );
 
 	CoUninitialize();
+
+	DeleteCriticalSection(&sourceDestructionMutex_);
 }
 
 DShowSrcManager *
@@ -94,48 +98,41 @@ DShowSrcManager::registerNotifyCallback(void * sapiCtx)
 }
 
 void
-DShowSrcManager::registerSrcGraph(void *src, IMediaEventEx *pME)
+DShowSrcManager::registerSrcGraph(const char *id, void *src, IMediaEventEx *pME)
 {
-	// create a context with all relevant info
-	srcGraphContext *pSrcGraphContext = new srcGraphContext();
-	pSrcGraphContext->pME = pME;
-	pSrcGraphContext->pSrc = src;
-		
-	// add source graph context to list
-	srcGraphList_.push_back(pSrcGraphContext);
-
-	// request that GraphMonitor monitor the graph for errors
-	graphMon_->addGraph(pME);
-}
-
-void
-DShowSrcManager::unregisterSrcGraph(IMediaEventEx *pME)
-{
-	// find appropriate source  in list
+	// find appropriate source id in list
 	for ( unsigned int i = 0; i < srcGraphList_.size(); i++ )
 	{
-		// found matching MediaEvent interface?
-		if ( srcGraphList_[i]->pME == pME )
+		// found matching id?
+		if ( srcGraphList_[i]->sourceId == id )
 		{
-			// remove entry from srcGraphList_
-			srcGraphContext *pSrcGraphContext = srcGraphList_[i];
-
-			srcGraphList_.erase( srcGraphList_.begin() + i );
-
-			delete pSrcGraphContext;
-
-			// request that GraphMonitor stop monitoring the graph for errors
-			graphMon_->removeGraph(pME);
-			return; 
+			// fill-in relevant info
+			srcGraphList_[i]->pSrc = src;
+			srcGraphList_[i]->pME = pME;
+				
+			// request that GraphMonitor monitor the graph for errors
+			graphMon_->addGraph(pME);
 		}
 	}
-	log_warn("failed to find source to unregister for monitoring\n");
 }
 
 bool
 DShowSrcManager::cancelSrcCaptureCallback(IMediaEventEx *pME, void *ctx)
 {
+	bool ret = false;
 	DShowSrcManager *self = static_cast<DShowSrcManager *>(ctx);
+
+	// NOTE: A source removal can be detected by both DevMonitor thread,
+	//       and GraphMonitor thread. This can lead to cancellation of
+	//       capture callbacks at the same time that the application
+	//       is attempting to destroy the source.
+	//
+	// GraphMon -> cancelSrcCaptureCallback (this code) cancels callbacks
+	// DevMonitor -> app -> source destructor calls sourceReleased()
+	//
+	// Grab mutex to prevent concurrent access from this function and
+	// sourceReleased()
+	EnterCriticalSection(&sourceDestructionMutex_);
 
 	// find appropriate source in list
 	for ( unsigned int i = 0; i < self->srcGraphList_.size(); i++ )
@@ -144,17 +141,18 @@ DShowSrcManager::cancelSrcCaptureCallback(IMediaEventEx *pME, void *ctx)
 		if ( self->srcGraphList_[i]->pME == pME )
 		{
 			// Found source to cancel callbacks for
-			// Call canceller
 			DirectShowSource * pSrc = 
 					static_cast<DirectShowSource *>(self->srcGraphList_[i]->pSrc);
 
 			// cancel the source's callback
 			pSrc->cancelCallbacks();
-			return true;
+			ret = true;
+			break;
 		}
 	}
+	LeaveCriticalSection(&sourceDestructionMutex_);
 
-	return false;
+	return ret;
 }
 
 int
@@ -254,10 +252,10 @@ clean_continue:
 bool
 DShowSrcManager::okayToBuildSource(const char *id)
 {
-	// Enforce exclusive access to a source
-	for ( unsigned int i = 0; i < acquiredSourceIDs_.size(); i++ )
+	// find appropriate source  in list
+	for ( unsigned int i = 0; i < srcGraphList_.size(); i++ )
 	{
-		if ( !strcmp(acquiredSourceIDs_[i], id) )
+		if ( !strcmp(srcGraphList_[i]->sourceId, id) )
 		{
 			// a source with this id already exists - and was acquired
 			log_warn("source already acquired: '%s'\n", id);
@@ -265,25 +263,48 @@ DShowSrcManager::okayToBuildSource(const char *id)
 		}
 	}
 
+	srcGraphContext *pSrcGraphContext = new srcGraphContext();
+	pSrcGraphContext->sourceId = id;
+
+	// these will be filled in later by registerSrcGraph()
+	pSrcGraphContext->pME = 0;
+	pSrcGraphContext->pSrc = 0;
+
 	// add source to collection
-	acquiredSourceIDs_.push_back(id);
+	srcGraphList_.push_back(pSrcGraphContext);
 
 	return true;
 }
 
 void DShowSrcManager::sourceReleased(const char *id)
 {
-	for ( unsigned int i = 0; i < acquiredSourceIDs_.size(); i++ )
+	// NOTE: see note in function cancelSrcCaptureCallback()
+	EnterCriticalSection(&sourceDestructionMutex_);
+
+	// find appropriate source id in list
+	for ( unsigned int i = 0; i < srcGraphList_.size(); i++ )
 	{
-		if ( !strcmp(acquiredSourceIDs_[i], id) )
+		// found matching source id?
+		if ( srcGraphList_[i]->sourceId == id )
 		{
 			// found source with matching id
 
-			acquiredSourceIDs_.erase( acquiredSourceIDs_.begin() + i );
+			// remove entry from srcGraphList_
+			srcGraphContext *pSrcGraphContext = srcGraphList_[i];
 
+			srcGraphList_.erase( srcGraphList_.begin() + i );
+
+			// request that GraphMonitor stop monitoring the graph for errors
+			graphMon_->removeGraph(pSrcGraphContext->pME);
+
+			delete pSrcGraphContext;
+
+			LeaveCriticalSection(&sourceDestructionMutex_);
 			return;
 		}
 	}
+
+	LeaveCriticalSection(&sourceDestructionMutex_);
 
 	log_warn("couldn't find source '%s' to release\n", id);
 }

@@ -44,8 +44,7 @@ public:
 	int     registerNotifyCallback(void *);
 
 	// to monitor for graph errors during capture
-	void    registerSrcGraph(void *, IMediaEventEx *);
-	void    unregisterSrcGraph(IMediaEventEx *pME);
+	void    registerSrcGraph(const char *, void *, IMediaEventEx *);
 
 	// graphMon_ callback to request capture abort
 	typedef bool (*cancelCallbackFunc)(IMediaEventEx *, void *);
@@ -61,7 +60,6 @@ public:
 private:
 	static  DShowSrcManager *instance_;
 	int     numRefs_;
-	std::vector<const char *> acquiredSourceIDs_;
 
 	DevMonitor devMon_;
 	GraphMonitor *graphMon_;
@@ -70,10 +68,16 @@ private:
 	{
 		IMediaEventEx * pME;
 		void          * pSrc;
+		const char    * sourceId;
 	};
 
-	// list of sources and their filter graphs
+	// list of acquired sources, their filter graphs, and IDs
 	std::vector<srcGraphContext *> srcGraphList_;
+
+	// prevent DevMonitor -> app -> src destructor from destroying
+	// source while GraphMon -> cancelSrcCaptureCallback
+	// is in the midst of cancelling callbacks
+	static CRITICAL_SECTION sourceDestructionMutex_;
 
 private:
 	IPin *  getOutPin( IBaseFilter *, int) const;
