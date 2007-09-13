@@ -439,6 +439,9 @@ vidcap_src_capture_start(vidcap_src * src,
 	struct sapi_src_context * src_ctx = (struct sapi_src_context *)src;
 	const int sliding_window_seconds = 4;
 
+	if ( user_data == VIDCAP_INVALID_USER_DATA )
+		return -3;
+
 	if ( src_ctx->src_state != src_bound )
 		return -1;
 
@@ -458,7 +461,7 @@ vidcap_src_capture_start(vidcap_src * src,
 	if ( (ret = src_ctx->start_capture(src_ctx)) )
 	{
 		src_ctx->capture_callback = 0;
-		src_ctx->capture_data = 0;
+		src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
 		return ret;
 	}
 
@@ -482,7 +485,7 @@ vidcap_src_capture_stop(vidcap_src * src)
 	sliding_window_destroy(src_ctx->frame_times);
 
 	src_ctx->capture_callback = 0;
-	src_ctx->capture_data = 0;
+	src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
 
 	return ret;
 }

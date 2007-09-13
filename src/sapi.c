@@ -215,10 +215,18 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 		const char * video_data, int video_data_size,
 		int error_status)
 {
-	int send_frame;
 	struct vidcap_capture_info cap_info;
 
-	send_frame = enforce_framerate(src_ctx);
+	// NOTE: We may be called here by a notification thread while
+	// the main thread is clearing the src_ctx ->capture_data and 
+	// ->capture_callback from within vidcap_src_capture_stop()
+	vidcap_src_capture_callback cap_callback = src_ctx->capture_callback;
+	void * cap_data = src_ctx->capture_data;
+
+	int send_frame = 0;
+
+	if ( !error_status )
+		send_frame = enforce_framerate(src_ctx);
 
 	if ( send_frame < 0 )
 		error_status = -1000;
@@ -251,15 +259,16 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 		cap_info.video_data_size = video_data_size;
 	}
 
-	if ( send_frame || error_status )
-		src_ctx->capture_callback(src_ctx, src_ctx->capture_data,
-				&cap_info);
-
-	if ( cap_info.error_status )
+	if ( ( send_frame || error_status ) && cap_callback && cap_data != VIDCAP_INVALID_USER_DATA )
 	{
-		src_ctx->src_state = src_bound;
-		src_ctx->capture_callback = 0;
-		src_ctx->capture_data = 0;
+		cap_callback(src_ctx, cap_data, &cap_info);
+
+		if ( cap_info.error_status )
+		{
+			src_ctx->src_state = src_bound;
+			src_ctx->capture_callback = 0;
+			src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
+		}
 	}
 
 	return 0;
