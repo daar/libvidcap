@@ -50,8 +50,7 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 	  pSampleGrabberIF_(0),
 	  pNullRenderer_(0),
 	  pMediaControlIF_(0),
-	  nativeMediaType_(0),
-	  stoppingCapture_(false)
+	  nativeMediaType_(0)
 {
 	if ( !dshowMgr_ )
 	{
@@ -146,8 +145,6 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 	// FIXME: Is this too early? Should we only do it during captures?
 	dshowMgr_->registerSrcGraph(this, pMediaEventIF_);
 
-	InitializeCriticalSection(&captureMutex_);
-
 	return;
 
 constructionFailure:
@@ -189,8 +186,6 @@ DirectShowSource::~DirectShowSource()
 	pCapGraphBuilder_->Release();
 
 	dshowMgr_->sourceReleased( getID() );
-
-	DeleteCriticalSection(&captureMutex_);
 }
 
 void
@@ -336,10 +331,8 @@ bail_2:
 	pSampleGrabber_->Release();
 	pSampleGrabber_ = 0;
 bail_1:
-	EnterCriticalSection(&captureMutex_);
 	pMediaControlIF_->Release();
 	pMediaControlIF_ = 0;
-	LeaveCriticalSection(&captureMutex_);
 
 	return -1;
 }
@@ -367,9 +360,6 @@ int
 DirectShowSource::stop()
 {
 	int ret = 0;
-	stoppingCapture_ = true;
-
-	EnterCriticalSection(&captureMutex_);
 
 	if ( pMediaControlIF_ )
 	{
@@ -381,10 +371,6 @@ DirectShowSource::stop()
 			ret = -1;
 		}
 	}
-
-	LeaveCriticalSection(&captureMutex_);
-
-	stoppingCapture_ = false;
 
 	return ret;
 }
@@ -732,23 +718,18 @@ DirectShowSource::freeMediaType(AM_MEDIA_TYPE &mediaType) const
 void
 DirectShowSource::cancelCallbacks()
 {
-	// serialize with normal capture callbacks
-	EnterCriticalSection(&captureMutex_);
-
-	// only cancel callbacks once (unless re-registered)
+	// have capture callbacks already been cancelled?
 	if ( !sourceContext_->capture_callback )
-	{
-		LeaveCriticalSection(&captureMutex_);
 		return;
-	}
 
-	// call capture callback - but let the
-	// app know that this is the last time
-	sapi_src_capture_notify(sourceContext_, 0, 0, -1);
-
-	LeaveCriticalSection(&captureMutex_);
-
+	// stop callbacks BEFORE thinking of
+	// touching sourceContext_->capture_callback
 	stop();
+
+	// call capture callback - but let vidcap and the
+	// app know that this is the last time
+	// (vidcap will reset capture_callback)
+	sapi_src_capture_notify(sourceContext_, 0, 0, -1);
 }
 
 STDMETHODIMP
@@ -770,22 +751,12 @@ DirectShowSource::QueryInterface(REFIID riid, void ** ppv)
 STDMETHODIMP
 DirectShowSource::BufferCB( double dblSampleTime, BYTE * pBuff, long buffSize )
 {
-	// prevent deadlock while stopping
-	if ( stoppingCapture_ )
-		return 0;
-
-	EnterCriticalSection(&captureMutex_);
-
 	if ( !sourceContext_->capture_callback )
 		return 0;
 
-	int ret = sapi_src_capture_notify(sourceContext_,
+	return sapi_src_capture_notify(sourceContext_,
 			reinterpret_cast<const char *>(pBuff),
 			static_cast<int>(buffSize), 0);
-
-	LeaveCriticalSection(&captureMutex_);
-
-	return ret;
 }
 
 int

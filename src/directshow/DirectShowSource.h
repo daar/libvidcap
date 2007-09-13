@@ -96,8 +96,6 @@ private:
 	IBaseFilter * pNullRenderer_;
 	IMediaControl * pMediaControlIF_;
 	AM_MEDIA_TYPE *nativeMediaType_;
-	CRITICAL_SECTION  captureMutex_;
-	bool stoppingCapture_;
 };
 
 #endif
