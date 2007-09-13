@@ -30,6 +30,8 @@
 #include "config.h"
 #endif
 
+#define VIDCAP_INVALID_USER_DATA	((void *)-1)
+
 #include "sapi_context.h"
 
 #ifdef __cplusplus
