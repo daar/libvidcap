@@ -51,7 +51,13 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 	  pNullRenderer_(0),
 	  pMediaControlIF_(0),
 	  nativeMediaType_(0),
-	  captureIsSetup_(false)
+	  captureIsSetup_(false),
+	  eventInitDone_(0),
+	  eventStart_(0),
+	  eventStop_(0),
+	  eventTerminate_(0),
+	  sourceThread_(0),
+	  sourceThreadID_(0)
 {
 	if ( !dshowMgr_ )
 	{
@@ -153,7 +159,31 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 	// register filter graph - to monitor for errors during capture
 	dshowMgr_->registerSrcGraph(src->src_info.identifier, this, pMediaEventIF_);
 
-	return;
+	if ( createEvents() )
+	{
+		log_error("failed creating events for source thread");
+		goto constructionFailure;
+	}
+
+	// pass instance to thread
+	sourceThread_ = CreateThread(
+			NULL,
+			0,
+			(LPTHREAD_START_ROUTINE)(&DirectShowSource::waitForCmd),
+			this,
+			0,
+			&sourceThreadID_);
+
+	if ( sourceThread_ != NULL )
+	{
+		// wait for signal from thread that it is ready
+		WaitForSingleObject(eventInitDone_, INFINITE);
+
+		return;
+	}
+
+	log_error("failed spinning source thread (%d)\n",
+			GetLastError());
 
 constructionFailure:
 
@@ -176,7 +206,39 @@ constructionFailure:
 
 DirectShowSource::~DirectShowSource()
 {
-	stop();
+	log_info("Signaling source '%s' to terminate...\n", 
+			sourceContext_->src_info.description);
+
+	// signal thread to shutdown
+	if ( !SetEvent(eventTerminate_) )
+	{
+		log_error("failed to signal graph monitor thread to terminate (%d)\n",
+				GetLastError());
+		return;
+	}
+
+	// wait for thread to shutdown
+	DWORD rc = WaitForSingleObject(sourceThread_, INFINITE);
+
+	if ( rc == WAIT_FAILED )
+	{
+		log_error("DirectShowSource: failed waiting for thread to return (%d)\n",
+				GetLastError());
+	}
+
+	log_info("source '%s' has terminated\n", 
+			sourceContext_->src_info.description);
+
+	CloseHandle(eventInitDone_);
+	CloseHandle(eventStart_);
+	CloseHandle(eventStop_);
+	CloseHandle(eventTerminate_);
+}
+
+void
+DirectShowSource::terminate()
+{
+	doStop();
 
 	cleanupCaptureGraphFoo();
 
@@ -199,6 +261,154 @@ DirectShowSource::~DirectShowSource()
 	pCapGraphBuilder_->Release();
 
 	dshowMgr_->sourceReleased( getID() );
+}
+
+int
+DirectShowSource::createEvents()
+{
+	// create an event used to signal that the thread has been created
+	eventInitDone_ = CreateEvent(
+		NULL,               // default security attributes
+		TRUE,               // manual-reset event
+		FALSE,              // initial state is clear
+		NULL                // no name
+		);
+
+	if ( eventInitDone_ == NULL)
+	{
+		log_error("DirectShowSource: failed creating initDone event (%d)\n",
+				GetLastError());
+		return -1;
+	}
+
+	// create an event used to signal thread to start capture
+	eventStart_ = CreateEvent(
+		NULL,               // default security attributes
+		TRUE,               // manual-reset event
+		FALSE,              // initial state is clear
+		NULL                // no name
+		);
+
+	if ( eventStart_ == NULL)
+	{
+		log_error("DirectShowSource: failed creating start event (%d)\n",
+				GetLastError());
+		CloseHandle(eventInitDone_);
+		return -1;
+	}
+
+	// create an event used to signal thread to stop capture
+	eventStop_ = CreateEvent(
+		NULL,               // default security attributes
+		TRUE,               // manual-reset event
+		FALSE,              // initial state is clear
+		NULL                // no name
+		);
+
+	if ( eventStop_ == NULL)
+	{
+		log_error("DirectShowSource: failed creating stop event (%d)\n",
+				GetLastError());
+		CloseHandle(eventInitDone_);
+		CloseHandle(eventStart_);
+		return -1;
+	}
+
+	// create an event used to signal thread to terminate
+	eventTerminate_ = CreateEvent(
+		NULL,               // default security attributes
+		TRUE,               // manual-reset event
+		FALSE,              // initial state is clear
+		NULL                // no name
+		);
+
+	if ( eventTerminate_ == NULL)
+	{
+		log_error("DirectShowSource: failed creating terminate event (%d)\n",
+				GetLastError());
+		CloseHandle(eventInitDone_);
+		CloseHandle(eventStart_);
+		CloseHandle(eventStop_);
+		return -1;
+	}
+
+	return 0;
+}
+
+DWORD WINAPI
+DirectShowSource::waitForCmd(LPVOID lpParam)
+{
+	// extract instance
+	DirectShowSource * pSrc = (DirectShowSource *)lpParam;
+
+	// signal to main thread that we are ready for commands
+	if ( !SetEvent(pSrc->eventInitDone_) )
+	{
+		log_error("failed to signal that source thread is ready (%d)\n",
+				GetLastError());
+		return -1;
+	}
+
+	enum { startEventIndex = 0, stopEventIndex,
+			terminateEventIndex };
+
+	size_t numHandles = terminateEventIndex + 1;
+	HANDLE * waitHandles = new HANDLE [numHandles];
+
+	// ...plus something to break-out when a handle must be
+	// added or removed, or when thread must die
+	waitHandles[startEventIndex]     = pSrc->eventStart_;
+	waitHandles[stopEventIndex]      = pSrc->eventStop_;
+	waitHandles[terminateEventIndex] = pSrc->eventTerminate_;
+
+	while ( true )
+	{
+		// wait until signaled to start or stop capture
+		// OR to terminate
+		DWORD rc = WaitForMultipleObjects(static_cast<DWORD>(numHandles),
+				waitHandles, false, INFINITE);
+
+		// get index of object that signaled
+		unsigned int index = rc - WAIT_OBJECT_0;
+
+		if ( rc == WAIT_FAILED )
+		{
+			log_warn("source wait failed. (0x%x)\n", GetLastError());
+		}
+		else if ( index == startEventIndex )
+		{
+			pSrc->doStart();
+
+			if ( !ResetEvent(pSrc->eventStart_) )
+			{
+				log_error("failed to reset source start event flag."
+						"Terminating.\n");
+				// terminate
+				break;
+			}
+		}
+		else if ( index == stopEventIndex )
+		{
+			pSrc->doStop();
+
+			if ( !ResetEvent(pSrc->eventStop_) )
+			{
+				log_error("failed to reset source stop event flag."
+						"Terminating.\n");
+				// terminate
+				break;
+			}
+		}
+		else if ( index == terminateEventIndex )
+		{
+			pSrc->terminate();
+			break;
+		}
+	}
+
+	delete [] waitHandles;
+
+	return 0;
 }
 
 void
@@ -342,24 +552,52 @@ bail_1:
 int
 DirectShowSource::start()
 {
-	if ( setupCaptureGraphFoo() )
-		return -1;
-
-	HRESULT hr = pMediaControlIF_->Run();
-
-	if ( FAILED(hr) )
+	// signal to source thread to start capturing
+	if ( !SetEvent(eventStart_) )
 	{
-		log_error("failed to run filter graph for source '%s' (%ul 0x%x)\n",
-				sourceContext_->src_info.description, hr, hr);
-
+		log_error("failed to signal source to start (%d)\n",
+				GetLastError());
 		return -1;
 	}
 
 	return 0;
 }
 
+void
+DirectShowSource::doStart()
+{
+	if ( !setupCaptureGraphFoo() )
+	{
+		HRESULT hr = pMediaControlIF_->Run();
+
+		if ( SUCCEEDED(hr) )
+			return;
+		else
+			log_error("failed to run filter graph for source '%s' (%ul 0x%x)\n",
+					sourceContext_->src_info.description, hr, hr);
+	}
+
+	// call capture callback - with error status
+	// (vidcap will reset capture_callback)
+	sapi_src_capture_notify(sourceContext_, 0, 0, -1);
+}
+
 int
 DirectShowSource::stop()
+{
+	// signal to source thread to stop capturing
+	if ( !SetEvent(eventStop_) )
+	{
+		log_error("failed to signal source to stop (%d)\n",
+				GetLastError());
+		return -1;
+	}
+
+	return 0;
+}
+
+void
+DirectShowSource::doStop()
 {
 	if ( captureIsSetup_ )
 	{
@@ -367,12 +605,8 @@ DirectShowSource::stop()
 		if ( FAILED(hr) )
 		{
 			log_error("failed to STOP the filter graph (0x%0x)\n", hr);
-
-			return -1;
 		}
 	}
-
-	return 0;
 }
 
 int

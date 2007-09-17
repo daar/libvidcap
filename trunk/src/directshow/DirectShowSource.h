@@ -53,6 +53,12 @@ public:
 	}
 
 private:
+	static DWORD WINAPI waitForCmd(LPVOID);
+	void terminate();
+	void doStart();
+	void doStop();
+	int createEvents();
+
 	int setupCaptureGraphFoo();
 	void cleanupCaptureGraphFoo();
 	bool checkFormat(const vidcap_fmt_info * fmtNominal,
@@ -97,6 +103,13 @@ private:
 	IMediaControl * pMediaControlIF_;
 	AM_MEDIA_TYPE *nativeMediaType_;
 	bool captureIsSetup_;
+
+	HANDLE eventInitDone_;
+	HANDLE eventStart_;
+	HANDLE eventStop_;
+	HANDLE eventTerminate_;
+	void * sourceThread_;
+	DWORD sourceThreadID_;
 };
 
 #endif
