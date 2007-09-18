@@ -654,7 +654,7 @@ DirectShowSource::bindFormat(const vidcap_fmt_info * fmtNominal)
 	// set the dimensions
 	vih->bmiHeader.biWidth = fmtNative.width;
 	vih->bmiHeader.biHeight = fmtNative.height;
-log_info("will use NATIVE FOURCC '%s'\n", vidcap_fourcc_string_get(fmtNative.fourcc));
+
 	resetCapGraphFoo();
 
 	// set the stream's media type
