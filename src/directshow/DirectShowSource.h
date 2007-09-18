@@ -59,8 +59,10 @@ private:
 	void doStop();
 	int createEvents();
 
-	int setupCaptureGraphFoo();
-	void cleanupCaptureGraphFoo();
+	int createCapGraphFoo();
+	void destroyCapGraphFoo();
+	int setupCapGraphFoo();
+	void resetCapGraphFoo();
 	bool checkFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative,
 			int formatNum,
