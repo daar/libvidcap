@@ -206,17 +206,22 @@ int conv_rgb24_to_rgb32(int width, int height, const char * src, char * dest)
 int conv_bottom_up_rgb24_to_rgb32(int width, int height,
 		const char * src, char * dest)
 {
-	int i;
+	int i, j;
 	unsigned int * d = (unsigned int *)dest;
-	const unsigned char * src_end = (const unsigned char *)src +
-		width * height * 3 - 1;
+	const unsigned char * src_bot = (const unsigned char *)src +
+		width * (height - 1) * 3;
 
-	for ( i = 0; i < width * height; ++i )
+	for ( i = 0; i < height; ++i )
 	{
-		*d = 0xff000000;
-		*d |= (*src_end--) << 16; /* red */
-		*d |= (*src_end--) << 8;  /* green */
-		*d++ |= *src_end--;       /* blue */
+		for ( j = 0; j < width; ++j )
+		{
+			*d = 0xff000000;
+			*d |= (*src_bot++) << 0;     /* red */
+			*d |= (*src_bot++) << 8;     /* green */
+			*d++ |= (*src_bot++) << 16;  /* blue */
+		}
+
+		src_bot -= width * 6;
 	}
 
 	return 0;
