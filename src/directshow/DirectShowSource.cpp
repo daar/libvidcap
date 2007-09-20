@@ -51,7 +51,7 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 	  pNullRenderer_(0),
 	  pMediaControlIF_(0),
 	  nativeMediaType_(0),
-	  captureIsSetup_(false),
+	  graphIsSetup_(false),
 	  eventInitDone_(0),
 	  eventStart_(0),
 	  eventStop_(0),
@@ -287,6 +287,20 @@ DirectShowSource::createCapGraphFoo()
 		return -1;
 	}
 
+	hr = pFilterGraph_->AddFilter(pSource_, L"Source Device");
+	if ( FAILED(hr) )
+	{
+		log_error("failed to add source (%d)\n", hr);
+		return -1;
+	}
+
+	hr = pFilterGraph_->AddFilter(pNullRenderer_, L"NullRenderer");
+	if ( FAILED(hr) )
+	{
+		log_error("failed to add null renderer (%d)\n", hr);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -466,47 +480,45 @@ DirectShowSource::waitForCmd(LPVOID lpParam)
 	return 0;
 }
 
-void
+int
 DirectShowSource::resetCapGraphFoo()
 {
-	if ( captureIsSetup_ )
+	if ( graphIsSetup_ )
 	{
-		// some or all of this appears to be necessary to allow
-		// subsequent captures with a different media type
-		HRESULT hr = pFilterGraph_->RemoveFilter(pSource_);
-		if ( FAILED(hr) )
-			log_error("failed to remove source (%d)\n", hr);
+		graphIsSetup_ = false;
 
-		hr = pFilterGraph_->RemoveFilter(pSampleGrabber_);
+		// necessary to allow subsequent calls to RenderStream()
+		// (like after rebinding) to succeed
+		HRESULT hr = pFilterGraph_->RemoveFilter(pSampleGrabber_);
 		if ( FAILED(hr) )
-			log_error("failed to remove Sample Grabber (%d)\n",
-					hr);
-
-		hr = pFilterGraph_->RemoveFilter(pNullRenderer_);
-		if ( FAILED(hr) )
-			log_error("failed to remove null renderer (%d)\n", hr);
-
-		captureIsSetup_ = false;
+		{
+			log_error("failed to remove Sample Grabber (%d)\n", hr);
+			return 1;
+		}
 	}
+
+	return 0;
 }
 
 int
 DirectShowSource::setupCapGraphFoo()
 {
-	if ( !captureIsSetup_ )
+	if ( !graphIsSetup_ )
 	{
-		// Set sample grabber's media type to match that of the source
-		HRESULT hr = pSampleGrabberIF_->SetMediaType(nativeMediaType_);
+		// set the stream's media type
+		HRESULT hr = pStreamConfig_->SetFormat(nativeMediaType_);
 		if ( FAILED(hr) )
 		{
-			log_error("failed to set grabber media type (%d)\n", hr);
+			log_error("failed setting stream format (%d)\n", hr);
+
 			return -1;
 		}
 
-		hr = pFilterGraph_->AddFilter(pSource_, L"Source Device");
+		// Set sample grabber's media type
+		hr = pSampleGrabberIF_->SetMediaType(nativeMediaType_);
 		if ( FAILED(hr) )
 		{
-			log_error("failed to add source (%d)\n", hr);
+			log_error("failed to set grabber media type (%d)\n", hr);
 			return -1;
 		}
 
@@ -514,13 +526,6 @@ DirectShowSource::setupCapGraphFoo()
 		if ( FAILED(hr) )
 		{
 			log_error("failed to add Sample Grabber (%d)\n", hr);
-			return -1;
-		}
-
-		hr = pFilterGraph_->AddFilter(pNullRenderer_, L"NullRenderer");
-		if ( FAILED(hr) )
-		{
-			log_error("failed to add null renderer (%d)\n", hr);
 			return -1;
 		}
 
@@ -536,7 +541,7 @@ DirectShowSource::setupCapGraphFoo()
 			return -1;
 		}
 
-		captureIsSetup_ = true;
+		graphIsSetup_ = true;
 	}
 
 	return 0;
@@ -577,7 +582,6 @@ DirectShowSource::doStart()
 	if ( !setupCapGraphFoo() )
 	{
 		HRESULT hr = pMediaControlIF_->Run();
-
 		if ( SUCCEEDED(hr) )
 			return;
 		else
@@ -593,7 +597,7 @@ DirectShowSource::doStart()
 int
 DirectShowSource::stop()
 {
-	// signal to source thread to stop capturing
+	// signal to source thread to stop capturing 
 	if ( !SetEvent(eventStop_) )
 	{
 		log_error("failed to signal source to stop (%d)\n",
@@ -607,7 +611,7 @@ DirectShowSource::stop()
 void
 DirectShowSource::doStop()
 {
-	if ( captureIsSetup_ )
+	if ( graphIsSetup_ )
 	{
 		HRESULT hr = pMediaControlIF_->Stop();
 		if ( FAILED(hr) )
@@ -655,21 +659,7 @@ DirectShowSource::bindFormat(const vidcap_fmt_info * fmtNominal)
 	vih->bmiHeader.biWidth = fmtNative.width;
 	vih->bmiHeader.biHeight = fmtNative.height;
 
-	resetCapGraphFoo();
-
-	// set the stream's media type
-	HRESULT hr = pStreamConfig_->SetFormat(nativeMediaType_);
-	if ( FAILED(hr) )
-	{
-		log_error("failed setting stream format (%d)\n", hr);
-
-		freeMediaType(*nativeMediaType_);
-		nativeMediaType_ = 0;
-
-		return 1;
-	}
-
-	return 0;
+	return resetCapGraphFoo();
 }
 
 bool

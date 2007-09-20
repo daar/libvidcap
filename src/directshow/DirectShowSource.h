@@ -62,7 +62,7 @@ private:
 	int createCapGraphFoo();
 	void destroyCapGraphFoo();
 	int setupCapGraphFoo();
-	void resetCapGraphFoo();
+	int resetCapGraphFoo();
 	bool checkFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative,
 			int formatNum,
@@ -104,7 +104,7 @@ private:
 	IBaseFilter * pNullRenderer_;
 	IMediaControl * pMediaControlIF_;
 	AM_MEDIA_TYPE *nativeMediaType_;
-	bool captureIsSetup_;
+	bool graphIsSetup_;
 
 	HANDLE eventInitDone_;
 	HANDLE eventStart_;
