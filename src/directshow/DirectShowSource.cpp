@@ -485,16 +485,26 @@ DirectShowSource::resetCapGraphFoo()
 {
 	if ( graphIsSetup_ )
 	{
-		graphIsSetup_ = false;
-
 		// necessary to allow subsequent calls to RenderStream()
 		// (like after rebinding) to succeed
 		HRESULT hr = pFilterGraph_->RemoveFilter(pSampleGrabber_);
 		if ( FAILED(hr) )
 		{
 			log_error("failed to remove Sample Grabber (%d)\n", hr);
+			if ( hr == VFW_E_NOT_STOPPED )
+			{
+				log_error("Capture wasn't stopped. "
+						"Repeating STOP request...\n");
+				stop();
+			}
+			else
+			{
+				log_error("not processing removal failure\n");
+			}
 			return 1;
 		}
+
+		graphIsSetup_ = false;
 	}
 
 	return 0;
