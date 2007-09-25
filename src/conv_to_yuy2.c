@@ -38,8 +38,44 @@ vidcap_rgb32_to_yuy2(int width, int height, const char * src, char * dest)
 int
 vidcap_i420_to_yuy2(int width, int height, const char * src, char * dest)
 {
-	log_error("vidcap_i420_to_yuy2() not implemented\n");
-	return -1;
+	/* convert from a planar structure to a packed structure */
+	const char * src_y_even = src;
+	const char * src_y_odd = src + width;
+	const char * src_u = src + width * height;
+	const char * src_v = src_u + width * height / 4;
+	char * dst_even = dest;
+	char * dst_odd = dest + width * 2;
+
+	int i, j;
+
+	/* i420 has a vertical sampling period (for u and v)
+	 * double that for yuy2. Will re-use
+	 * U and V data during repackaging.
+	 */
+	for ( i = 0; i < height / 2; ++i )
+	{
+		for ( j = 0; j < width / 2; ++j )
+		{
+			*dst_even++ = *src_y_even++;
+			*dst_odd++  = *src_y_odd++;
+
+			*dst_even++ = *src_u;
+			*dst_odd++  = *src_u++;
+
+			*dst_even++ = *src_y_even++;
+			*dst_odd++  = *src_y_odd++;
+
+			*dst_even++ = *src_v;
+			*dst_odd++  = *src_v++;
+		}
+
+		src_y_even += width;
+		src_y_odd += width;
+		dst_even += width * 2;
+		dst_odd += width * 2;
+	}
+
+	return 0;
 }
 
 int
