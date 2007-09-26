@@ -28,11 +28,62 @@
 
 /* NOTE: size of dest buffer must be >= width * height * 2 */
 
+/* Based on formulas found at http://en.wikipedia.org/wiki/YUV */
 int
 vidcap_rgb32_to_yuy2(int width, int height, const char * src, char * dest)
 {
-	log_error("vidcap_rgb32_to_yuy2() not implemented\n");
-	return -1;
+	unsigned char * dst_even, * dst_odd;
+	const unsigned char * src_even, * src_odd;
+	int i, j;
+
+	src_even = (const unsigned char *)src;
+	src_odd = src_even + width * 4;
+	dst_even = (unsigned char *)dest;
+	dst_odd = dest + width * 2;
+
+	for ( i = 0; i < height / 2; ++i )
+	{
+		for ( j = 0; j < width / 2; ++j )
+		{
+			/* NOTE: u and v are taken from different src samples */
+
+			short r, g, b;
+			b = *src_even++;
+			g = *src_even++;
+			r = *src_even++;
+			++src_even;
+			*dst_even++ = (( r * 66 + g * 129 + b * 25 + 128 ) >> 8 ) + 16;
+			*dst_even++ = (( r * -38 - g * 74 + b * 112 + 128 ) >> 8 ) + 128;
+
+			b = *src_even++;
+			g = *src_even++;
+			r = *src_even++;
+			++src_even;
+			*dst_even++ = (( r * 66 + g * 129 + b * 25 + 128 ) >> 8 ) + 16;
+			*dst_even++ = (( r * 112 - g * 94 - b * 18 + 128 ) >> 8 ) + 128;
+
+			b = *src_odd++;
+			g = *src_odd++;
+			r = *src_odd++;
+			++src_odd;
+			*dst_odd++ = (( r * 66 + g * 129 + b * 25 + 128 ) >> 8 ) + 16;
+			*dst_odd++ = (( r * -38 - g * 74 + b * 112 + 128 ) >> 8 ) + 128;
+
+			b = *src_odd++;
+			g = *src_odd++;
+			r = *src_odd++;
+			++src_odd;
+			*dst_odd++ = (( r * 66 + g * 129 + b * 25 + 128 ) >> 8 ) + 16;
+			*dst_odd++ = (( r * 112 - g * 94 - b * 18 + 128 ) >> 8 ) + 128;
+		}
+
+		dst_even += width * 2;
+		dst_odd += width * 2;
+		src_even += width * 4;
+		src_odd += width * 4;
+	}
+
+	return 0;
 }
 
 int
