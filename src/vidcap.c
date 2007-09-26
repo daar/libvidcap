@@ -414,6 +414,9 @@ vidcap_format_bind(vidcap_src * src,
 			log_oom(__FILE__, __LINE__);
 			return -1;
 		}
+
+		log_info("format bind requires conversion: %s\n",
+				conv_conversion_name_get(src_ctx->fmt_conv_func));
 	}
 
 	src_ctx->src_state = src_bound;

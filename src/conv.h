@@ -50,6 +50,9 @@ conv_conversion_func_get(int src_fourcc, int dst_fourcc);
 int
 conv_fmt_size_get(int width, int height, int fourcc);
 
+const char *
+conv_conversion_name_get(conv_func function);
+
 #ifdef __cplusplus
 }
 #endif
