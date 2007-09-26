@@ -52,7 +52,7 @@ static const struct conv_info conv_list[] =
 	{ VIDCAP_FOURCC_I420,  VIDCAP_FOURCC_YUY2,  vidcap_i420_to_yuy2,
 		"i420->yuy2" },
 	{ VIDCAP_FOURCC_RGB32, VIDCAP_FOURCC_YUY2,  vidcap_rgb32_to_yuy2,
-		"rgb32->yuy2 (not implemented!)" },
+		"rgb32->yuy2" },
 
 	{ VIDCAP_FOURCC_2VUY,  VIDCAP_FOURCC_YUY2,  conv_2vuy_to_yuy2,
 		"2vuy->yuy2" },
