@@ -321,12 +321,13 @@ GrabberManager::createContext(mySourceContext *mySrcCtxt,
 
 	mySrcCtxt->window->show();
 
-	// connect video to window
+	// connect video directly to window, so that a blocked
+	// main thread won't result in a pile-up of frames
 	QObject::connect(mySrcCtxt->grabber,
 				SIGNAL(videoFrame(int, int, QByteArray)),
 				mySrcCtxt->window,
 				SLOT(displayVideo(int, int, QByteArray)),
-				Qt::AutoConnection);
+				Qt::DirectConnection);
 
 	// Set the Application icon
 	QIcon app_icon(":/app_icon.png");
