@@ -41,11 +41,10 @@ public:
 
 	int start();
 	int stop();
+	void cancelCallbacks();
 	int bindFormat(const vidcap_fmt_info * fmtInfo);
 	int validateFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative) const;
-
-	void cancelCallbacks();
 
 	const char * getID() const
 	{
@@ -57,6 +56,7 @@ private:
 	void terminate();
 	void doStart();
 	void doStop();
+	void doCancelCallbacks();
 	int createEvents();
 
 	int createCapGraphFoo();
@@ -110,8 +110,16 @@ private:
 	HANDLE eventStart_;
 	HANDLE eventStop_;
 	HANDLE eventTerminate_;
+	HANDLE eventCancel_;
 	void * sourceThread_;
 	DWORD sourceThreadID_;
+
+	bool okToSendStart_;
+	bool okToSendStop_;
+	bool allowCallbacks_;
+	bool callbackInProgress_;
+	bool callbackCancellationInProgress_;
+	bool captureStopped_;
 };
 
 #endif

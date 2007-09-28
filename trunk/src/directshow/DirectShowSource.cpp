@@ -56,8 +56,15 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 	  eventStart_(0),
 	  eventStop_(0),
 	  eventTerminate_(0),
+	  eventCancel_(0),
 	  sourceThread_(0),
-	  sourceThreadID_(0)
+	  sourceThreadID_(0),
+	  okToSendStart_(true),
+	  okToSendStop_(true),
+	  allowCallbacks_(false),
+	  callbackInProgress_(false),
+	  callbackCancellationInProgress_(false),
+	  captureStopped_(true)
 {
 	if ( !dshowMgr_ )
 	{
@@ -401,6 +408,25 @@ DirectShowSource::createEvents()
 		return -1;
 	}
 
+	// create an event used to signal thread to cancel capture
+	eventCancel_ = CreateEvent(
+		NULL,               // default security attributes
+		TRUE,               // manual-reset event
+		FALSE,              // initial state is clear
+		NULL                // no name
+		);
+
+	if ( eventCancel_ == NULL)
+	{
+		log_error("DirectShowSource: failed creating cancel event (%d)\n",
+				GetLastError());
+		CloseHandle(eventInitDone_);
+		CloseHandle(eventStart_);
+		CloseHandle(eventStop_);
+		CloseHandle(eventTerminate_);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -418,14 +444,13 @@ DirectShowSource::waitForCmd(LPVOID lpParam)
 		return -1;
 	}
 
-	enum { startEventIndex = 0, stopEventIndex,
+	enum { cancelEventIndex = 0, startEventIndex, stopEventIndex,
 			terminateEventIndex };
 
 	size_t numHandles = terminateEventIndex + 1;
 	HANDLE * waitHandles = new HANDLE [numHandles];
 
-	// ...plus something to break-out when a handle must be
-	// added or removed, or when thread must die
+	waitHandles[cancelEventIndex]    = pSrc->eventCancel_;
 	waitHandles[startEventIndex]     = pSrc->eventStart_;
 	waitHandles[stopEventIndex]      = pSrc->eventStop_;
 	waitHandles[terminateEventIndex] = pSrc->eventTerminate_;
@@ -444,10 +469,29 @@ DirectShowSource::waitForCmd(LPVOID lpParam)
 		{
 			log_warn("source wait failed. (0x%x)\n", GetLastError());
 		}
+		else if ( index == terminateEventIndex )
+		{
+			// give terminate the highest priority
+
+			pSrc->terminate();
+			break;
+		}
+		else if ( index == cancelEventIndex )
+		{
+			// give cancel a higher priority than start/stop
+
+			if ( !ResetEvent(pSrc->eventCancel_) )
+			{
+				log_error("failed to reset source start event flag."
+						"Terminating.\n");
+				// terminate
+				break;
+			}
+
+			pSrc->doCancelCallbacks();
+		}
 		else if ( index == startEventIndex )
 		{
-			pSrc->doStart();
-
 			if ( !ResetEvent(pSrc->eventStart_) )
 			{
 				log_error("failed to reset source start event flag."
@@ -455,11 +499,13 @@ DirectShowSource::waitForCmd(LPVOID lpParam)
 				// terminate
 				break;
 			}
+
+			pSrc->okToSendStop_ = true;
+
+			pSrc->doStart();
 		}
 		else if ( index == stopEventIndex )
 		{
-			pSrc->doStop();
-
 			if ( !ResetEvent(pSrc->eventStop_) )
 			{
 				log_error("failed to reset source stop event flag."
@@ -467,11 +513,10 @@ DirectShowSource::waitForCmd(LPVOID lpParam)
 				// terminate
 				break;
 			}
-		}
-		else if ( index == terminateEventIndex )
-		{
-			pSrc->terminate();
-			break;
+
+			pSrc->okToSendStart_ = true;
+
+			pSrc->doStop();
 		}
 	}
 
@@ -491,11 +536,32 @@ DirectShowSource::resetCapGraphFoo()
 		if ( FAILED(hr) )
 		{
 			log_error("failed to remove Sample Grabber (%d)\n", hr);
+
+			//FIXME: is this still necessary? Does it still work?
 			if ( hr == VFW_E_NOT_STOPPED )
 			{
-				log_error("Capture wasn't stopped. "
-						"Repeating STOP request...\n");
-				stop();
+				log_error("Capture wasn't stopped. Repeating STOP...\n");
+
+				HRESULT hr = pMediaControlIF_->Stop();
+				if ( FAILED(hr) )
+				{
+					log_error("failed in 2nd STOP attempt (0x%0x)\n", hr);
+				}
+				else
+				{
+					HRESULT hr = pFilterGraph_->RemoveFilter(pSampleGrabber_);
+					if ( FAILED(hr) )
+					{
+						// this is silly
+						log_error("failed twice to remove sample grabber (%d)",
+								hr);
+					}
+					else
+					{
+						graphIsSetup_ = false;
+						return 0;
+					}
+				}
 			}
 			else
 			{
@@ -575,7 +641,12 @@ DirectShowSource::terminate()
 int
 DirectShowSource::start()
 {
-	// signal to source thread to start capturing
+	if ( !okToSendStart_ )
+		return -1;
+
+	okToSendStart_ = false;
+
+	// signal source thread to start capturing
 	if ( !SetEvent(eventStart_) )
 	{
 		log_error("failed to signal source to start (%d)\n",
@@ -591,29 +662,57 @@ DirectShowSource::doStart()
 {
 	if ( !setupCapGraphFoo() )
 	{
+		allowCallbacks_ = true;
+
 		HRESULT hr = pMediaControlIF_->Run();
 		if ( SUCCEEDED(hr) )
 			return;
-		else
-			log_error("failed to run filter graph for source '%s' (%ul 0x%x)\n",
-					sourceContext_->src_info.description, hr, hr);
-	}
 
-	// call capture callback - with error status
-	// (vidcap will reset capture_callback)
+		log_error("failed to run filter graph for source '%s' (%ul 0x%x)\n",
+				sourceContext_->src_info.description, hr, hr);
+	}
+	else
+		okToSendStart_ = true;
+
+	allowCallbacks_ = false;
+
+	// final capture callback - with error status
 	sapi_src_capture_notify(sourceContext_, 0, 0, -1);
 }
 
+// NOTE: This function will block until capture is 
+//       completely stopped.
+//       Even when returning failure, it guarantees
+//       no more callbacks will occur
 int
 DirectShowSource::stop()
 {
-	// signal to source thread to stop capturing 
+	while ( !okToSendStop_ )
+		Sleep(10);
+
+	okToSendStop_ = false;
+
+	captureStopped_ = false;
+
+	// signal source thread to stop capturing 
 	if ( !SetEvent(eventStop_) )
 	{
 		log_error("failed to signal source to stop (%d)\n",
 				GetLastError());
+
+		// Need to ensure no more callbacks arrive
+		// Do this the hard way
+		allowCallbacks_ = false;
+		while ( callbackInProgress_ || callbackCancellationInProgress_ )
+			Sleep(10);
+
 		return -1;
 	}
+
+	// wait for source thread to indicate that capture has stopped
+	// guaranteeing no more callbacks will occur after this returns
+	while ( !captureStopped_ )
+		Sleep(10);
 
 	return 0;
 }
@@ -621,6 +720,8 @@ DirectShowSource::stop()
 void
 DirectShowSource::doStop()
 {
+	allowCallbacks_ = false;
+
 	if ( graphIsSetup_ )
 	{
 		HRESULT hr = pMediaControlIF_->Stop();
@@ -628,7 +729,24 @@ DirectShowSource::doStop()
 		{
 			log_error("failed to STOP the filter graph (0x%0x)\n", hr);
 		}
+
+		// If source was removed while not capturing (following a stop),
+		// graph's Run() could block forever. The RenderStream(), however,
+		// would fail. Therefore, call resetCapGraphFoo() whenever
+		// stopping, to force RenderStream() to validate setup before
+		// any start (and reduce likelihood of Run() blocking forever).
+		//
+		// And if source is effectively removed after
+		// RenderStream(), but before graph's Run()?
+		resetCapGraphFoo();
 	}
+
+	// make sure we're not in a callback
+	while ( callbackInProgress_ )
+		Sleep(10);
+
+	// signal back to main thread that capture has stopped
+	captureStopped_ = true;
 }
 
 int
@@ -669,7 +787,7 @@ DirectShowSource::bindFormat(const vidcap_fmt_info * fmtNominal)
 	vih->bmiHeader.biWidth = fmtNative.width;
 	vih->bmiHeader.biHeight = fmtNative.height;
 
-	return resetCapGraphFoo();
+	return 0;
 }
 
 bool
@@ -960,18 +1078,53 @@ DirectShowSource::freeMediaType(AM_MEDIA_TYPE &mediaType) const
 void
 DirectShowSource::cancelCallbacks()
 {
-	// have buffer callbacks already been cancelled?
-	if ( !sourceContext_->capture_callback )
+	// signal source thread to cancel capturing
+	if ( !SetEvent(eventCancel_) )
+	{
+		log_error("failed to signal source to cancel (%d)\n",
+				GetLastError());
+
+		// Need to ensure app is notified
+		// Do it the hard way
+
+		// prevent future callbacks
+		allowCallbacks_ = false;
+
+		// wait for current callback to finish
+		while ( callbackInProgress_ )
+			Sleep(10);
+
+		// final capture callback - with error status
+		sapi_src_capture_notify(sourceContext_, 0, 0, -1);
+	}
+}
+
+void
+DirectShowSource::doCancelCallbacks()
+{
+	callbackCancellationInProgress_ = true;
+
+	// has capture been stopped already?
+	if ( !allowCallbacks_ )
+	{
+		callbackCancellationInProgress_ = false;
 		return;
+	}
 
-	// stop callbacks before thinking of 
-	// touching sourceContext_->capture_callback
-	stop();
+	// prevent future callbacks
+	allowCallbacks_ = false;
 
-	// call capture callback - but let vidcap and the
-	// app know that this is the last time
-	// (vidcap will reset capture_callback)
+	// block until current callback is not in progress
+	while ( callbackInProgress_ )
+		Sleep(10);
+
+	// stop callbacks before sending final callback
+	doStop();
+
+	// final capture callback - with error status
 	sapi_src_capture_notify(sourceContext_, 0, 0, -1);
+
+	callbackCancellationInProgress_ = false;
 }
 
 STDMETHODIMP
@@ -989,16 +1142,27 @@ DirectShowSource::QueryInterface(REFIID riid, void ** ppv)
 	return E_NOINTERFACE;
 }
 
-// The sample grabber calls us back from its deliver thread
+// The sample grabber calls this from its deliver thread
+// NOTE: This function must not block, else it will cause a
+//       graph's Stop() to block - which could result in a deadlock
 STDMETHODIMP
 DirectShowSource::BufferCB( double dblSampleTime, BYTE * pBuff, long buffSize )
 {
-	if ( !sourceContext_->capture_callback )
-		return 0;
+	callbackInProgress_ = true;
 
-	return sapi_src_capture_notify(sourceContext_,
+	if ( !allowCallbacks_ )
+	{
+		callbackInProgress_ = false;
+		return 0;
+	}
+
+	int ret = sapi_src_capture_notify(sourceContext_,
 			reinterpret_cast<const char *>(pBuff),
 			static_cast<int>(buffSize), 0);
+
+	callbackInProgress_ = false;
+
+	return ret;
 }
 
 int
