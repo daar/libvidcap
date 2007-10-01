@@ -27,7 +27,6 @@
 
 #include <vector>
 #include "DevMonitor.h"
-#include "GraphMonitor.h"
 
 class DShowSrcManager
 {
@@ -43,13 +42,6 @@ public:
 	// for device event notifications (additions and removals)
 	int     registerNotifyCallback(void *);
 
-	// to monitor for graph errors during capture
-	void    registerSrcGraph(const char *, void *, IMediaEventEx *);
-
-	// graphMon_ callback to request capture abort
-	typedef bool (*cancelCallbackFunc)(IMediaEventEx *, void *);
-	static bool cancelSrcCaptureCallback(IMediaEventEx *, void *);
-
 	bool    getJustCapDevice(const char *devLongName,
 				IBindCtx **ppBindCtx,
 				IMoniker **ppMoniker) const;
@@ -62,22 +54,15 @@ private:
 	int     numRefs_;
 
 	DevMonitor devMon_;
-	GraphMonitor *graphMon_;
 
 	struct srcGraphContext
 	{
-		IMediaEventEx * pME;
 		void          * pSrc;
 		const char    * sourceId;
 	};
 
-	// list of acquired sources, their filter graphs, and IDs
+	// list of acquired sources and IDs
 	std::vector<srcGraphContext *> srcGraphList_;
-
-	// prevent DevMonitor -> app -> src destructor from destroying
-	// source while GraphMon -> cancelSrcCaptureCallback
-	// is in the midst of cancelling callbacks
-	static CRITICAL_SECTION sourceDestructionMutex_;
 
 private:
 	IPin *  getOutPin( IBaseFilter *, int) const;

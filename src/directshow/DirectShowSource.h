@@ -28,9 +28,11 @@
 #include <stdexcept>
 #include <atlbase.h>
 #include <qedit.h>
+#include <DShow.h>
 
 #include "DShowSrcManager.h"
 #include "sapi_context.h"
+#include "GraphMonitor.h"
 
 class DirectShowSource : public ISampleGrabberCB
 {
@@ -45,6 +47,9 @@ public:
 	int bindFormat(const vidcap_fmt_info * fmtInfo);
 	int validateFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative) const;
+
+	typedef void (*graphEventCBFunc)(void *);
+	static void processGraphEvent(void *);
 
 	const char * getID() const
 	{
@@ -94,6 +99,8 @@ private:
 private:
 	struct sapi_src_context * sourceContext_;
 	DShowSrcManager * dshowMgr_;
+	GraphMonitor *graphMon_;
+
 	IBaseFilter * pSource_;
 	ICaptureGraphBuilder2 *pCapGraphBuilder_;
 	IAMStreamConfig * pStreamConfig_;
@@ -104,6 +111,7 @@ private:
 	IBaseFilter * pNullRenderer_;
 	IMediaControl * pMediaControlIF_;
 	AM_MEDIA_TYPE *nativeMediaType_;
+	HANDLE *graphHandle_;
 	bool graphIsSetup_;
 
 	HANDLE eventInitDone_;

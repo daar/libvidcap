@@ -26,52 +26,26 @@
 #define _GRAPHMONITOR_H_
 
 #include <windows.h>
-#include <DShow.h>
-#include <vector>
-#include "LocklessQueue.h"
 
 class GraphMonitor
 {
 
 public:
-	typedef bool (*cancelCallbackFunc)(IMediaEventEx *, void *);
+	typedef void (*graphEventCBFunc)(void *);
 
-	GraphMonitor(cancelCallbackFunc, void *);
+	GraphMonitor(HANDLE *, graphEventCBFunc, void *);
 	~GraphMonitor();
-	void addGraph(IMediaEventEx *);
-	void removeGraph(IMediaEventEx *);
 
 private:
-	static DWORD WINAPI monitorGraphs(LPVOID lpParam);
-	void processListEvent();
-	void processGraphEvent(IMediaEventEx *);
-	int findContext(IMediaEventEx *);
+	static DWORD WINAPI monitorGraph(LPVOID lpParam);
 
 private:
+	HANDLE *graphHandle_;
 	void * parentContext_;
-	cancelCallbackFunc cancelCBFunc_;
+	graphEventCBFunc processGraphEvent_;
+
 	HANDLE initDoneEvent_;
-	HANDLE listEvent_;
 	HANDLE terminateEvent_;
-
-	struct graphContext
-	{
-		IMediaEventEx      * pME;
-		HANDLE             * waitHandle;
-	};
-
-	// used to generate array of handles on which to wait
-	std::vector<graphContext *> graphContextList_;
-
-	struct graphListEvent
-	{
-		enum graphListEventType { add = 0, remove } eventType;
-		IMediaEventEx * graph;
-	};
-
-	// enqueued by main thread
-	// dequeued by graph monitor thread
-	LocklessQueue<graphListEvent> graphListEventQueue_;
 
 	void * graphMonitorThread_;
 	DWORD graphMonitorThreadID_;
