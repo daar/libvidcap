@@ -85,7 +85,6 @@ GraphMonitor::GraphMonitor(HANDLE *graphHandle,
 	}
 
 	DWORD rc = WaitForSingleObject(initDoneEvent_, INFINITE);
-	//FIXME: consider a timeout
 
 	return;
 
@@ -143,7 +142,6 @@ GraphMonitor::monitorGraph(LPVOID lpParam)
 		// the thread must die
 		DWORD rc = WaitForMultipleObjects(static_cast<DWORD>(numHandles),
 				waitHandles, false, INFINITE);
-
 
 		// get index of object that signaled
 		unsigned int index = rc - WAIT_OBJECT_0;

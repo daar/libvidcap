@@ -37,9 +37,8 @@
 #include "DirectShowSource.h"
 
 DirectShowSource::DirectShowSource(struct sapi_src_context *src,
-		DShowSrcManager *mgr, bufferCallbackFunc cbFunc, cancelCaptureFunc cancelCaptureCB, void * parent)
+		bufferCallbackFunc cbFunc, cancelCaptureFunc cancelCaptureCB, void * parent)
 	: sourceContext_(src),
-	  dshowMgr_(mgr),
 	  bufferCB_(cbFunc),
 	  cancelCaptureCB_(cancelCaptureCB),
 	  parent_(parent),
@@ -61,8 +60,7 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 	IMoniker * pMoniker = 0;
 
 	// Get the capture device - identified by it's long display name
-	if ( !dshowMgr_->getJustCapDevice(getID(), &pBindCtx, &pMoniker) )
-	{
+	if ( !getCaptureDevice(getID(), &pBindCtx, &pMoniker) ){
 		log_warn("Failed to get device '%s'.\n", getID());
 		throw std::runtime_error("failed to get device");
 	}
@@ -280,9 +278,6 @@ DirectShowSource::destroyCapGraphFoo()
 
 	if ( pCapGraphBuilder_ )
 		pCapGraphBuilder_->Release();
-
-	if ( graphHandle_ )
-		CloseHandle(graphHandle_);
 }
 
 int
@@ -1111,3 +1106,86 @@ DirectShowSource::processGraphEvent(void *context)
 	}
 }
 
+bool
+DirectShowSource::getCaptureDevice(const char *devLongName,
+		IBindCtx **ppBindCtx,
+		IMoniker **ppMoniker) const
+{
+	HRESULT hr;
+
+	// Create an enumerator
+	CComPtr<ICreateDevEnum> pCreateDevEnum;
+
+	pCreateDevEnum.CoCreateInstance(CLSID_SystemDeviceEnum);
+
+	if ( !pCreateDevEnum )
+	{
+		log_error("failed creating device enumerator - to get a source\n");
+		return false;
+	}
+
+	// Enumerate video capture devices
+	CComPtr<IEnumMoniker> pEm;
+
+	pCreateDevEnum->CreateClassEnumerator(
+			CLSID_VideoInputDeviceCategory, &pEm, 0);
+
+	if ( !pEm )
+	{
+		log_error("failed creating enumerator moniker\n");
+		return false;
+	}
+
+	pEm->Reset();
+
+	ULONG ulFetched;
+	IMoniker * pM;
+
+	// Iterate over all video capture devices
+	int i=0;
+	while ( pEm->Next(1, &pM, &ulFetched) == S_OK )
+	{
+		IBindCtx *pbc;
+
+		hr = CreateBindCtx(0, &pbc);
+
+		if ( FAILED(hr) )
+		{
+			log_error("failed CreateBindCtx\n");
+			pM->Release();
+			return false;
+		}
+
+		// Get the device names
+		char *shortName;
+		char *longName;
+		if ( getDeviceInfo(pM, pbc, &shortName, &longName) )
+		{
+			log_warn("failed to get device info.\n");
+			pbc->Release();
+			continue;
+		}
+
+		// Compare with the desired dev name
+		if ( !strcmp(longName, devLongName) )
+		{
+			// Got the correct device
+			*ppMoniker = pM;
+			*ppBindCtx = pbc;
+
+			free(shortName);
+			free(longName);
+			return true;
+		}
+
+		// Wrong device. Cleanup and try again
+		free(shortName);
+		free(longName);
+
+		pbc->Release();
+	}
+
+	pM->Release();
+
+	return false;
+}

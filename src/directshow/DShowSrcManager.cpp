@@ -158,11 +158,18 @@ DShowSrcManager::scan(struct sapi_src_list * srcList) const
 
 		srcInfo = &srcList->list[newListLen - 1];
 
-		//FIXME: rename to getDeviceId()
-		sprintDeviceInfo(pM, pbc,
-				srcInfo->identifier, srcInfo->description,
-				min(sizeof(srcInfo->identifier),
-					sizeof(srcInfo->description)));
+		// get device description and ID
+		char *tempDesc;
+		char *tempID;
+		getDeviceInfo(pM, pbc, &tempDesc, &tempID);
+
+		sprintf_s(srcInfo->description, sizeof(srcInfo->description),
+				"%s", tempDesc);
+		sprintf_s(srcInfo->identifier, sizeof(srcInfo->identifier),
+				"%s", tempID);
+
+		free(tempID);
+		free(tempDesc);
 
 clean_continue:
 		if ( pCaptureFilter )
@@ -233,149 +240,6 @@ void DShowSrcManager::sourceReleased(const char *id)
 	log_warn("couldn't find source '%s' to release\n", id);
 }
 
-bool
-DShowSrcManager::getJustCapDevice(const char *devLongName,
-		IBindCtx **ppBindCtx,
-		IMoniker **ppMoniker) const
-{
-	HRESULT hr;
-
-	// Create an enumerator
-	CComPtr<ICreateDevEnum> pCreateDevEnum;
-
-	pCreateDevEnum.CoCreateInstance(CLSID_SystemDeviceEnum);
-
-	if ( !pCreateDevEnum )
-	{
-		log_error("failed creating device enumerator - to get a source\n");
-		return false;
-	}
-
-	// Enumerate video capture devices
-	CComPtr<IEnumMoniker> pEm;
-
-	pCreateDevEnum->CreateClassEnumerator(
-			CLSID_VideoInputDeviceCategory, &pEm, 0);
-
-	if ( !pEm )
-	{
-		log_error("failed creating enumerator moniker\n");
-		return false;
-	}
-
-	pEm->Reset();
-
-	ULONG ulFetched;
-	IMoniker * pM;
-
-	// Iterate over all video capture devices
-	int i=0;
-	while ( pEm->Next(1, &pM, &ulFetched) == S_OK )
-	{
-		IBindCtx *pbc;
-
-		hr = CreateBindCtx(0, &pbc);
-
-		if ( FAILED(hr) )
-		{
-			log_error("failed CreateBindCtx\n");
-			pM->Release();
-			return false;
-		}
-
-		// Get the device names
-		char *shortName;
-		char *longName;
-		if ( getDeviceInfo(pM, pbc, &shortName, &longName) )
-		{
-			log_warn("failed to get device info.\n");
-			pbc->Release();
-			continue;
-		}
-
-		// Compare with the desired dev name
-		if ( !strcmp(longName, devLongName) )
-		{
-			// Got the correct device
-			*ppMoniker = pM;
-			*ppBindCtx = pbc;
-
-			free(shortName);
-			free(longName);
-			return true;
-		}
-
-		// Wrong device. Cleanup and try again
-		free(shortName);
-		free(longName);
-
-		pbc->Release();
-	}
-
-	pM->Release();
-
-	return false;
-}
-
-void
-DShowSrcManager::sprintDeviceInfo(IMoniker * pM, IBindCtx * pbc,
-		char* idBuff, char *descBuff, int buffsSize) const
-{
-	USES_CONVERSION;
-
-	HRESULT hr;
-
-	CComPtr< IMalloc > pMalloc;
-
-	hr = CoGetMalloc(1, &pMalloc);
-
-	if ( FAILED(hr) )
-	{
-		log_error("failed CoGetMalloc\n");
-		return;
-	}
-
-	LPOLESTR pDisplayName;
-
-	hr = pM->GetDisplayName(pbc, 0, &pDisplayName);
-
-	if ( FAILED(hr) )
-	{
-		log_warn("failed GetDisplayName\n");
-		return;
-	}
-
-	// This gets stack memory, no dealloc needed.
-	char * pszDisplayName = OLE2A(pDisplayName);
-
-	pMalloc->Free(pDisplayName);
-
-	CComPtr< IPropertyBag > pPropBag;
-
-	hr = pM->BindToStorage(pbc, 0, IID_IPropertyBag,
-			(void **)&pPropBag);
-
-	if ( FAILED(hr) )
-	{
-		log_error("failed getting video device property bag\n");
-		return;
-	}
-
-	VARIANT v;
-	VariantInit(&v);
-
-	char * pszFriendlyName = 0;
-
-	hr = pPropBag->Read(L"FriendlyName", &v, 0);
-
-	if ( SUCCEEDED(hr) )
-		pszFriendlyName = _com_util::ConvertBSTRToString(v.bstrVal);
-
-	sprintf_s(descBuff, buffsSize, "%s", pszFriendlyName);
-	sprintf_s(idBuff, buffsSize, "%s", pszDisplayName);
-
-	delete [] pszFriendlyName;
-}
 
 IPin *
 DShowSrcManager::getOutPin( IBaseFilter * pFilter, int nPin ) const
@@ -428,68 +292,3 @@ DShowSrcManager::getPin( IBaseFilter * pFilter, PIN_DIRECTION dirrequired,
 	return hr;
 }
 
-// Allocates and returns the friendlyName and displayName for a device
-int
-DShowSrcManager::getDeviceInfo(IMoniker * pM, IBindCtx * pbc,
-		char** easyName, char **longName) const
-{
-	USES_CONVERSION;
-
-	HRESULT hr;
-
-	CComPtr< IMalloc > pMalloc;
-
-	hr = CoGetMalloc(1, &pMalloc);
-
-	if ( FAILED(hr) )
-	{
-		log_error("failed CoGetMalloc\n");
-		return 1;
-	}
-
-	LPOLESTR pDisplayName;
-
-	hr = pM->GetDisplayName(pbc, 0, &pDisplayName);
-
-	if ( FAILED(hr) )
-	{
-		log_warn("failed GetDisplayName\n");
-		return 1;
-	}
-
-	// This gets stack memory, no dealloc needed.
-	char * pszDisplayName = OLE2A(pDisplayName);
-
-	// Allocate a copy of this long name
-	*longName = _strdup(pszDisplayName);
-
-	pMalloc->Free(pDisplayName);
-
-	CComPtr< IPropertyBag > pPropBag;
-
-	hr = pM->BindToStorage(pbc, 0, IID_IPropertyBag,
-			(void **)&pPropBag);
-
-	if ( FAILED(hr) )
-	{
-		log_warn("failed getting video device property bag\n");
-		return 1;
-	}
-
-	VARIANT v;
-	VariantInit(&v);
-
-	char * pszFriendlyName = 0;
-
-	hr = pPropBag->Read(L"FriendlyName", &v, 0);
-
-	if ( SUCCEEDED(hr) )
-		pszFriendlyName =
-			_com_util::ConvertBSTRToString(v.bstrVal);
-
-	// Allocate a copy of this short name
-	*easyName = _strdup(pszFriendlyName);
-
-	delete [] pszFriendlyName;
-	return 0;
-}

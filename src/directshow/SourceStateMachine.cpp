@@ -70,7 +70,6 @@ SourceStateMachine::SourceStateMachine(struct sapi_src_context *src,
 	try
 	{
 		src_ = new DirectShowSource(src,
-				mgr,
 				(bufferCallbackFunc)&SourceStateMachine::bufferCB,
 				(cancelCaptureFunc)&SourceStateMachine::cancelCaptureCB,
 				this);
