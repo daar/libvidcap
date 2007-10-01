@@ -25,7 +25,7 @@
 #include <windows.h>
 #include <stdio.h>
 
-#include "DirectShowSource.h"
+#include "SourceStateMachine.h"
 #include "DShowSrcManager.h"
 
 #include "logging.h"
@@ -44,8 +44,8 @@ source_format_validate(struct sapi_src_context * src_ctx,
 		const struct vidcap_fmt_info * fmt_nominal,
 		struct vidcap_fmt_info * fmt_native)
 {
-	DirectShowSource * dshow_src =
-		static_cast<DirectShowSource *>(src_ctx->priv);
+	SourceStateMachine * dshow_src =
+		static_cast<SourceStateMachine *>(src_ctx->priv);
 
 	return dshow_src->validateFormat(fmt_nominal, fmt_native);
 }
@@ -54,8 +54,8 @@ static int
 source_format_bind(struct sapi_src_context * src_ctx,
 		const struct vidcap_fmt_info * fmtInfo)
 {
-	DirectShowSource * dshow_src =
-		static_cast<DirectShowSource *>(src_ctx->priv);
+	SourceStateMachine * dshow_src =
+		static_cast<SourceStateMachine *>(src_ctx->priv);
 
 	return dshow_src->bindFormat(fmtInfo);
 }
@@ -77,8 +77,8 @@ my_invalid_parameter_handler(const wchar_t * expression,
 static int
 source_capture_start(struct sapi_src_context * src_ctx)
 {
-	DirectShowSource * dshow_src =
-		static_cast<DirectShowSource *>(src_ctx->priv);
+	SourceStateMachine * dshow_src =
+		static_cast<SourceStateMachine *>(src_ctx->priv);
 
 	return dshow_src->start();
 }
@@ -86,8 +86,8 @@ source_capture_start(struct sapi_src_context * src_ctx)
 static int
 source_capture_stop(struct sapi_src_context *src_ctx)
 {
-	DirectShowSource * dshow_src =
-		static_cast<DirectShowSource *>(src_ctx->priv);
+	SourceStateMachine *dshow_src =
+		static_cast<SourceStateMachine *>(src_ctx->priv);
 
 	return dshow_src->stop();
 }
@@ -125,7 +125,7 @@ scan_sources(struct sapi_context * sapi_ctx,
 static int
 source_release(struct sapi_src_context * src_ctx)
 {
-	delete static_cast<DirectShowSource *>(src_ctx->priv);
+	delete static_cast<SourceStateMachine *>(src_ctx->priv);
 
 	return 0;
 }
@@ -162,7 +162,7 @@ source_acquire(struct sapi_context * sapi_ctx,
 
 	try
 	{
-		src_ctx->priv = new DirectShowSource(src_ctx, src_manager);
+		src_ctx->priv = new SourceStateMachine(src_ctx, src_manager);
 	}
 	catch ( std::runtime_error & e )
 	{
