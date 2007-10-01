@@ -1110,3 +1110,4 @@ DirectShowSource::processGraphEvent(void *context)
 		log_error("failed getting event for a graph\n");
 	}
 }
+
