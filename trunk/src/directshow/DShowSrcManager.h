@@ -26,9 +26,10 @@
 #define _DSHOWSRCMANAGER_H_
 
 #include <vector>
+#include "DirectShowObject.h"
 #include "DevMonitor.h"
 
-class DShowSrcManager
+class DShowSrcManager : public DirectShowObject
 {
 
 protected:
@@ -42,9 +43,6 @@ public:
 	// for device event notifications (additions and removals)
 	int     registerNotifyCallback(void *);
 
-	bool    getJustCapDevice(const char *devLongName,
-				IBindCtx **ppBindCtx,
-				IMoniker **ppMoniker) const;
 	bool    okayToBuildSource(const char *);
 	void    sourceReleased(const char *id);
 	void    release();
@@ -67,9 +65,6 @@ private:
 private:
 	IPin *  getOutPin( IBaseFilter *, int) const;
 	HRESULT getPin( IBaseFilter *, PIN_DIRECTION, int, IPin **) const;
-	int     getDeviceInfo(IMoniker * pM, IBindCtx * pbc,
-						char** easyName, char **longName) const;
-	void    sprintDeviceInfo(IMoniker *, IBindCtx *, char *, char *, int) const;
 };
 
 #endif

@@ -34,14 +34,14 @@
 #include "sapi_context.h"
 #include "GraphMonitor.h"
 
-class DirectShowSource : public ISampleGrabberCB
+class DirectShowSource : public ISampleGrabberCB, public DirectShowObject
 {
 
 public:
 	typedef int (*bufferCallbackFunc)(double, BYTE *, long, void *);
 	typedef void (*cancelCaptureFunc)(void *);
 
-	DirectShowSource(struct sapi_src_context *, DShowSrcManager *,
+	DirectShowSource(struct sapi_src_context *,
 			bufferCallbackFunc, cancelCaptureFunc, void *);
 	~DirectShowSource();
 
@@ -69,11 +69,12 @@ private:
 			int formatNum,
 			bool *needsFramerateEnforcing, bool *needsFormatConversion,
 			AM_MEDIA_TYPE **candidateMediaFormat) const;
-
 	bool findBestFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative, AM_MEDIA_TYPE **mediaFormat) const;
-
 	void freeMediaType(AM_MEDIA_TYPE &) const;
+	bool getCaptureDevice(const char *devLongName,
+			IBindCtx **ppBindCtx,
+			IMoniker **ppMoniker) const;
 
 	// Fake out COM
 	STDMETHODIMP_(ULONG) AddRef() { return 2; }
