@@ -38,12 +38,15 @@ class DirectShowSource : public ISampleGrabberCB
 {
 
 public:
-	DirectShowSource(struct sapi_src_context *src, DShowSrcManager *);
+	typedef int (*bufferCallbackFunc)(double, BYTE *, long, void *);
+	typedef void (*cancelCaptureFunc)(void *);
+
+	DirectShowSource(struct sapi_src_context *, DShowSrcManager *,
+			bufferCallbackFunc, cancelCaptureFunc, void *);
 	~DirectShowSource();
 
 	int start();
-	int stop();
-	void cancelCallbacks();
+	void stop();
 	int bindFormat(const vidcap_fmt_info * fmtInfo);
 	int validateFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative) const;
@@ -57,13 +60,6 @@ public:
 	}
 
 private:
-	static DWORD WINAPI waitForCmd(LPVOID);
-	void terminate();
-	void doStart();
-	void doStop();
-	void doCancelCallbacks();
-	int createEvents();
-
 	int createCapGraphFoo();
 	void destroyCapGraphFoo();
 	int setupCapGraphFoo();
@@ -85,20 +81,22 @@ private:
 	STDMETHODIMP QueryInterface(REFIID riid, void ** ppv);
 
 	// Not used
-	STDMETHODIMP SampleCB( double SampleTime, IMediaSample * pSample )
+	STDMETHODIMP SampleCB( double, IMediaSample *)
 	{
 		return S_OK;
 	}
 
 	// The sample grabber calls us back from its deliver thread
-	STDMETHODIMP
-	BufferCB( double dblSampleTime, BYTE * pBuffer, long lBufferSize );
+	STDMETHODIMP BufferCB( double, BYTE *, long );
 
 	static int mapDirectShowMediaTypeToVidcapFourcc(DWORD data, int & fourcc);
 
 private:
 	struct sapi_src_context * sourceContext_;
 	DShowSrcManager * dshowMgr_;
+	bufferCallbackFunc bufferCB_;
+	cancelCaptureFunc cancelCaptureCB_;
+	void * parent_;
 	GraphMonitor *graphMon_;
 
 	IBaseFilter * pSource_;
@@ -113,21 +111,6 @@ private:
 	AM_MEDIA_TYPE *nativeMediaType_;
 	HANDLE *graphHandle_;
 	bool graphIsSetup_;
-
-	HANDLE eventInitDone_;
-	HANDLE eventStart_;
-	HANDLE eventStop_;
-	HANDLE eventTerminate_;
-	HANDLE eventCancel_;
-	void * sourceThread_;
-	DWORD sourceThreadID_;
-
-	bool okToSendStart_;
-	bool okToSendStop_;
-	bool allowCallbacks_;
-	bool callbackInProgress_;
-	bool callbackCancellationInProgress_;
-	bool captureStopped_;
 };
 
 #endif

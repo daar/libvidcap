@@ -35,7 +35,7 @@
 #include "logging.h"
 
 #include "DShowSrcManager.h"
-#include "DirectShowSource.h"
+#include "SourceStateMachine.h"
 
 DShowSrcManager * DShowSrcManager::instance_ = 0;
 
