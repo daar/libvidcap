@@ -38,6 +38,14 @@ enum vidcap_fourccs {
 	VIDCAP_FOURCC_RGB32  = 102,
 };
 
+enum vidcap_log_level {
+	VIDCAP_LOG_NONE  = 0,
+	VIDCAP_LOG_ERROR = 10,
+	VIDCAP_LOG_WARN  = 20,
+	VIDCAP_LOG_INFO  = 30,
+	VIDCAP_LOG_DEBUG = 40
+};
+
 typedef void vidcap_state;
 typedef void vidcap_sapi;
 typedef void vidcap_src;
@@ -81,6 +89,9 @@ vidcap_initialize(void);
 
 void
 vidcap_destroy(vidcap_state *);
+
+int
+vidcap_log_level_set(enum vidcap_log_level level);
 
 int
 vidcap_sapi_enumerate(vidcap_state *,

@@ -38,7 +38,7 @@
 
 static FILE * logging_file = 0;
 
-static enum log_level logging_level = log_level_debug;
+static enum log_level logging_level = log_level_info;
 
 static void do_log(enum log_level level, const char * fmt, va_list ap)
 {

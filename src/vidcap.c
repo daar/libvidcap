@@ -133,6 +133,36 @@ vidcap_destroy(vidcap_state * state)
 }
 
 int
+vidcap_log_level_set(enum vidcap_log_level level)
+{
+	int log_level;
+
+	switch ( level )
+	{
+	case VIDCAP_LOG_NONE:
+		log_level = log_level_none;
+		break;
+	case VIDCAP_LOG_ERROR:
+		log_level = log_level_error;
+		break;
+	case VIDCAP_LOG_WARN:
+		log_level = log_level_warn;
+		break;
+	case VIDCAP_LOG_INFO:
+		log_level = log_level_info;
+		break;
+	case VIDCAP_LOG_DEBUG:
+		log_level = log_level_debug;
+	default:
+		return -1;
+	}
+
+	log_level_set(log_level);
+
+	return 0;
+}
+
+int
 vidcap_sapi_enumerate(vidcap_state * state,
 		int index,
 		struct vidcap_sapi_info * sapi_info)
