@@ -51,15 +51,18 @@ libvidcap_la_LDFLAGS +=			\
 endif
 
 if HAVE_DIRECTSHOW
-libvidcap_la_SOURCES +=			\
-	sapi_dshow.cpp			\
-	directshow/DShowSrcManager.cpp	\
-	directshow/DShowSrcManager.h	\
-	directshow/DevMonitor.cpp	\
-	directshow/DevMonitor.h		\
-	directshow/DirectShowSource.cpp	\
-	directshow/DirectShowSource.h	\
-	directshow/GraphMonitor.cpp	\
-	directshow/GraphMonitor.h	\
-	directshow/LocklessQueue.h
+libvidcap_la_SOURCES +=				\
+	directshow/DShowSrcManager.cpp		\
+	directshow/DShowSrcManager.h		\
+	directshow/DevMonitor.cpp		\
+	directshow/DevMonitor.h			\
+	directshow/DirectShowObject.cpp		\
+	directshow/DirectShowObject.h		\
+	directshow/DirectShowSource.cpp		\
+	directshow/DirectShowSource.h		\
+	directshow/GraphMonitor.cpp		\
+	directshow/GraphMonitor.h		\
+	directshow/SourceStateMachine.cpp	\
+	directshow/SourceStateMachine.h		\
+	sapi_dshow.cpp
 endif

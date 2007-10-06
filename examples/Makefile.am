@@ -16,3 +16,4 @@ AM_LDFLAGS +=				\
 	-framework QuickTime
 endif
 
+EXTRA_DIST = vidcapTester
