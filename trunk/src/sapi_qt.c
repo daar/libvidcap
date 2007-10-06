@@ -202,7 +202,7 @@ source_decomp_callback(void * decomp_tracking_refcon,
 	}
 
 	if ( qt_src_ctx->frame_count == 1 )
-		log_info("capture time: %c%c%c%c  %s  %s  %s\n",
+		log_debug("capture time: %c%c%c%c  %s  %s  %s\n",
 				(char)(pixel_format >> 24),
 				(char)(pixel_format >> 16),
 				(char)(pixel_format >> 8),
@@ -287,7 +287,7 @@ source_decomp_session_setup(struct sapi_src_context * src_ctx)
 		return -1;
 	}
 
-	log_info("setup decomp: %c%c%c%c  %s  %s  %s\n",
+	log_debug("setup decomp: %c%c%c%c  %s  %s  %s\n",
 			(char)(pixel_format >> 24),
 			(char)(pixel_format >> 16),
 			(char)(pixel_format >> 8),

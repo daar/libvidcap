@@ -149,7 +149,7 @@ int sg_source_acquire(struct sg_source * src)
 
 		src->native_pixel_format = (*compression_list)->cType;
 
-		log_info("native pixel format %c%c%c%c\n",
+		log_debug("native pixel format %c%c%c%c\n",
 				(char)(src->native_pixel_format >> 24),
 				(char)(src->native_pixel_format >> 16),
 				(char)(src->native_pixel_format >> 8),
