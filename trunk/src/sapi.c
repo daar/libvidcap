@@ -217,9 +217,10 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 {
 	struct vidcap_capture_info cap_info;
 
-	// NOTE: We may be called here by a notification thread while
-	// the main thread is clearing the src_ctx ->capture_data and 
-	// ->capture_callback from within vidcap_src_capture_stop()
+	/* NOTE: We may be called here by a notification thread while the
+	 * main thread is clearing capture_data and capture_callback from
+	 * within vidcap_src_capture_stop().
+	 */
 	vidcap_src_capture_callback cap_callback = src_ctx->capture_callback;
 	void * cap_data = src_ctx->capture_data;
 
