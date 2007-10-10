@@ -356,6 +356,9 @@ vidcap_src_release(vidcap_src * src)
 	if ( src_ctx->fmt_conv_buf )
 		free(src_ctx->fmt_conv_buf);
 
+	if ( src_ctx->frame_times )
+		sliding_window_destroy(src_ctx->frame_times);
+
 	free(src_ctx);
 
 	return ret;
@@ -476,7 +479,7 @@ vidcap_src_capture_start(vidcap_src * src,
 		return -3;
 
 	if ( src_ctx->src_state != src_bound )
-		return -1;
+		return -4;
 
 	src_ctx->frame_time_next.tv_sec = 0;
 	src_ctx->frame_time_next.tv_usec = 0;
@@ -495,6 +498,8 @@ vidcap_src_capture_start(vidcap_src * src,
 	{
 		src_ctx->capture_callback = 0;
 		src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
+		sliding_window_destroy(src_ctx->frame_times);
+		src_ctx->frame_times = 0;
 		return ret;
 	}
 
@@ -511,14 +516,14 @@ vidcap_src_capture_stop(vidcap_src * src)
 	if ( src_ctx->src_state != src_capturing )
 		return -1;
 
-	src_ctx->src_state = src_bound;
-
 	ret = src_ctx->stop_capture(src_ctx);
 
 	sliding_window_destroy(src_ctx->frame_times);
 
+	src_ctx->frame_times = 0;
 	src_ctx->capture_callback = 0;
 	src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
+	src_ctx->src_state = src_bound;
 
 	return ret;
 }
