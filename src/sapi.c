@@ -92,16 +92,22 @@ enforce_framerate(struct sapi_src_context * src_ctx)
 {
 	struct timeval  tv_earliest_next;
 	struct timeval  tv_now;
-	struct timeval *tv_oldest;
-	const int first_time = !sliding_window_count(src_ctx->frame_times);
+	struct timeval *tv_oldest = 0;
+	int first_time = 0;
+
+	if ( !src_ctx->frame_times )
+		return 0;
+
+	first_time = !sliding_window_count(src_ctx->frame_times);
 
 	if ( gettimeofday(&tv_now, 0) )
 		return -1;
 
 	if ( !first_time && !tv_greater_or_equal(
 				&tv_now, &src_ctx->frame_time_next) )
-		/* Allow frame through */
 		return 0;
+
+	/* Allow frame through */
 
 	tv_oldest = sliding_window_peek_front(src_ctx->frame_times);
 
@@ -217,9 +223,9 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 {
 	struct vidcap_capture_info cap_info;
 
-	/* NOTE: We may be called here by a notification thread while the
-	 * main thread is clearing capture_data and capture_callback from
-	 * within vidcap_src_capture_stop().
+	/* NOTE: We may be called here by the capture thread while the
+	 * main thread is clearing capture_data and capture_callback
+	 * from within vidcap_src_capture_stop().
 	 */
 	vidcap_src_capture_callback cap_callback = src_ctx->capture_callback;
 	void * cap_data = src_ctx->capture_data;
