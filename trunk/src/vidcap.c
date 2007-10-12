@@ -438,7 +438,7 @@ vidcap_format_bind(vidcap_src * src,
 	{
 		log_error("failed to get stride-free buffer size for %s\n",
 				vidcap_fourcc_string_get(
-					fmt_info->fourcc));
+						src_ctx->fmt_native.fourcc));
 		return -1;
 	}
 

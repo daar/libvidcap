@@ -243,6 +243,7 @@ conv_fmt_size_get(int width, int height, int fourcc)
 		return pixels * 3 / 2;
 
 	case VIDCAP_FOURCC_RGB24:
+	case VIDCAP_FOURCC_BOTTOM_UP_RGB24:
 		return pixels * 3;
 
 	case VIDCAP_FOURCC_RGB32:
