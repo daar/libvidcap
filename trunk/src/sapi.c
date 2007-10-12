@@ -216,9 +216,11 @@ sapi_src_format_list_build(struct sapi_src_context * src_ctx)
 	return 0;
 }
 
+/* NOTE: stride-ignorant sapis should pass a stride of zero */
 int
 sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 		const char * video_data, int video_data_size,
+		signed int stride,
 		int error_status)
 {
 	struct vidcap_capture_info cap_info;
@@ -229,6 +231,8 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 	 */
 	vidcap_src_capture_callback cap_callback = src_ctx->capture_callback;
 	void * cap_data = src_ctx->capture_data;
+	void * buf = 0;
+	int buf_data_size = 0;
 
 	int send_frame = 0;
 
@@ -240,6 +244,23 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 
 	cap_info.error_status = error_status;
 
+	if ( !cap_info.error_status && stride &&
+			!destridify(src_ctx->fmt_native.width,
+				src_ctx->fmt_native.height,
+				src_ctx->fmt_native.fourcc,
+				stride,
+				video_data,
+				src_ctx->stride_free_buf) )
+	{
+		buf = src_ctx->stride_free_buf;
+		buf_data_size = src_ctx->stride_free_buf_size;
+	}
+	else
+	{
+		buf = (void *)video_data;
+		buf_data_size = video_data_size;
+	}
+
 	if ( cap_info.error_status )
 	{
 		cap_info.video_data = 0;
@@ -248,9 +269,9 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 	else if ( src_ctx->fmt_conv_func )
 	{
 		if ( src_ctx->fmt_conv_func(
-					src_ctx->fmt_nominal.width,
-					src_ctx->fmt_nominal.height,
-					video_data,
+					src_ctx->fmt_native.width,
+					src_ctx->fmt_native.height,
+					buf,
 					src_ctx->fmt_conv_buf) )
 		{
 			log_error("failed format conversion\n");
@@ -262,8 +283,8 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 	}
 	else
 	{
-		cap_info.video_data = video_data;
-		cap_info.video_data_size = video_data_size;
+		cap_info.video_data = buf;
+		cap_info.video_data_size = buf_data_size;
 	}
 
 	if ( ( send_frame || error_status ) && cap_callback && cap_data != VIDCAP_INVALID_USER_DATA )

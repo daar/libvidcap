@@ -71,6 +71,9 @@ struct sapi_src_context
 	char * fmt_conv_buf;
 	int fmt_conv_buf_size;
 
+	char * stride_free_buf;
+	int stride_free_buf_size;
+
 	struct vidcap_fmt_info * fmt_list;
 	int fmt_list_len;
 

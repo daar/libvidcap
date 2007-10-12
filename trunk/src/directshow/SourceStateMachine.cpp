@@ -367,7 +367,7 @@ SourceStateMachine::doStart()
 		okToSendStart_ = true;
 
 		// final capture callback - with error status
-		sapi_src_capture_notify(sourceContext_, 0, 0, -1);
+		sapi_src_capture_notify(sourceContext_, 0, 0, 0, -1);
 	}
 	else
 	{
@@ -469,7 +469,7 @@ SourceStateMachine::cancelCapture()
 			Sleep(10);
 
 		// final capture callback - with error status
-		sapi_src_capture_notify(sourceContext_, 0, 0, -1);
+		sapi_src_capture_notify(sourceContext_, 0, 0, 0, -1);
 	}
 }
 
@@ -496,7 +496,7 @@ SourceStateMachine::doCancelCapture()
 	src_->stop();
 
 	// final capture callback - with error status
-	sapi_src_capture_notify(sourceContext_, 0, 0, -1);
+	sapi_src_capture_notify(sourceContext_, 0, 0, 0, -1);
 
 	callbackCancellationInProgress_ = false;
 }
@@ -519,7 +519,7 @@ SourceStateMachine::bufferCB( double dblSampleTime, BYTE * pBuff, long buffSize,
 
 	int ret = sapi_src_capture_notify(instance->sourceContext_,
 			reinterpret_cast<const char *>(pBuff),
-			static_cast<int>(buffSize), 0);
+			static_cast<int>(buffSize), 0, 0);
 
 	instance->callbackInProgress_ = false;
 

@@ -53,6 +53,10 @@ conv_fmt_size_get(int width, int height, int fourcc);
 const char *
 conv_conversion_name_get(conv_func function);
 
+int
+destridify(int width, int height, int fourcc, int stride,
+                const char * src, char * dst);
+
 #ifdef __cplusplus
 }
 #endif
