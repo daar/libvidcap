@@ -352,6 +352,7 @@ capture_thread_proc(void * data)
 		sapi_src_capture_notify(src_ctx, fb_base +
 				v4l_src_ctx->mbuf.offsets[capture_frame],
 				capture_size,
+				0,
 				0);
 
 		++capture_frame_count;

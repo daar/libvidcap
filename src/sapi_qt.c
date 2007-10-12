@@ -215,7 +215,8 @@ source_decomp_callback(void * decomp_tracking_refcon,
 
 	sapi_src_capture_notify(src_ctx,
 			CVPixelBufferGetBaseAddress(pixel_buffer),
-			CVPixelBufferGetDataSize(pixel_buffer), 0);
+			CVPixelBufferGetDataSize(pixel_buffer),
+			CVPixelBufferGetBytesPerRow(pixel_buffer), 0);
 
 	if ( (err = CVPixelBufferUnlockBaseAddress(pixel_buffer, 0)) )
 	{
@@ -425,7 +426,7 @@ capture_thread_proc(void * data)
 
 		if ( sg_source_capture_poll(qt_src_ctx->src) )
 		{
-			sapi_src_capture_notify(src_ctx, 0, 0, -1);
+			sapi_src_capture_notify(src_ctx, 0, 0, 0, -1);
 			ret = -1;
 			goto bail;
 		}

@@ -356,6 +356,9 @@ vidcap_src_release(vidcap_src * src)
 	if ( src_ctx->fmt_conv_buf )
 		free(src_ctx->fmt_conv_buf);
 
+	if ( src_ctx->stride_free_buf )
+		free(src_ctx->stride_free_buf);
+
 	if ( src_ctx->frame_times )
 		sliding_window_destroy(src_ctx->frame_times);
 
@@ -419,6 +422,32 @@ vidcap_format_bind(vidcap_src * src,
 	src_ctx->fmt_conv_func = conv_conversion_func_get(
 			src_ctx->fmt_native.fourcc,
 			src_ctx->fmt_nominal.fourcc);
+
+	if ( src_ctx->stride_free_buf )
+	{
+		free(src_ctx->stride_free_buf);
+		src_ctx->stride_free_buf = 0;
+	}
+
+	src_ctx->stride_free_buf_size = conv_fmt_size_get(
+				src_ctx->fmt_native.width,
+				src_ctx->fmt_native.height,
+				src_ctx->fmt_native.fourcc);
+
+	if ( !src_ctx->stride_free_buf_size )
+	{
+		log_error("failed to get stride-free buffer size for %s\n",
+				vidcap_fourcc_string_get(
+					fmt_info->fourcc));
+		return -1;
+	}
+
+	if ( !(src_ctx->stride_free_buf =
+				malloc(src_ctx->stride_free_buf_size)) )
+	{
+		log_oom(__FILE__, __LINE__);
+		return -1;
+	}
 
 	if ( src_ctx->fmt_conv_buf )
 	{
