@@ -214,6 +214,12 @@ sapi_dshow_initialize(struct sapi_context *sapi_ctx)
 		return -1;
 	}
 
+	if ( sapi_ctx->priv == 0 )
+	{
+		log_error("failed constructing DShowSrcManager\n");
+		return -1;
+	}
+
 	sapi_ctx->identifier = identifier;
 	sapi_ctx->description = description;
 	sapi_ctx->acquire = sapi_acquire;

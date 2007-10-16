@@ -86,8 +86,6 @@ GraphMonitor::GraphMonitor(HANDLE *graphHandle,
 
 	DWORD rc = WaitForSingleObject(initDoneEvent_, INFINITE);
 
-	return;
-
 }
 
 GraphMonitor::~GraphMonitor()
