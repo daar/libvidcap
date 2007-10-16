@@ -72,7 +72,7 @@ static const struct conv_info conv_list[] =
 static const int conv_list_len = sizeof(conv_list) / sizeof(struct conv_info);
 
 static int
-destride_packed(int image_byte_width, int height, signed int stride,
+destride_packed(int image_byte_width, int height, int stride,
 		const char * src, char * dst)
 {
 	/* destride a packed structure */
@@ -100,7 +100,7 @@ static int
 destride_planar(int width, int height,
 		int u_width, int u_height,
 		int v_width, int v_height,
-		signed int y_stride, signed int u_stride, signed int v_stride,
+		int y_stride, int u_stride, int v_stride,
 		const char * src, char * dst)
 {
 	char * dst_y_even = dst;

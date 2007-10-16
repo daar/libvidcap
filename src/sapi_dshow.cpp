@@ -177,6 +177,13 @@ source_acquire(struct sapi_context * sapi_ctx,
 		return -1;
 	}
 
+	if ( src_ctx->priv == 0 )
+	{
+		log_warn("failed constructing source state machine for '%s'\n",
+				src_info->identifier);
+		return -1;
+	}
+
 	// Save acquired source to the dshow-specific source context
 	src_ctx->release         = source_release;
 	src_ctx->format_validate = source_format_validate;
