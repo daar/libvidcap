@@ -17,7 +17,12 @@ macx:{
 
 unix:{
 	INCLUDEPATH += ../../include
-	local_lib_path = ../../../local-$$platform/lib
+	CONFIG(special_config): {
+		local_lib_path = ../../../local-$$platform/lib
+	}
+	else {
+		local_lib_path = ../../src/.libs
+	}
 	LIBS += $$local_lib_path/libvidcap.a
 }
 
@@ -40,7 +45,12 @@ win32: {
 	INCLUDEPATH += ../../include
 
 	LIBS += -L\"$(PSDK_DIR)/Lib\"
-	LIBS += -L../../../build-win32/libvidcap/$$config_name
+	CONFIG(special_config): {
+		LIBS += -L../../../build-win32/libvidcap/$$config_name
+	}
+	else {
+		LIBS += -L../../contrib/win/vs2005/$$config_name/libvidcap
+	}
 
 	LIBS += strmiids.lib
 	LIBS += comsuppw.lib
@@ -71,7 +81,12 @@ SOURCES += \
 	   vidcapTester.cpp \
 
 unix:{
-	build_dir = ../../../build-$$platform/$$TARGET
+	CONFIG(special_config): {
+		build_dir = ../../../build-$$platform/$$TARGET
+	}
+	else {
+		build_dir = ../../build/$$TARGET
+	}
 
 	DESTDIR = $$build_dir
 	MOC_DIR = $$build_dir
