@@ -44,6 +44,7 @@ int sg_source_init(struct sg_source * src, int device_id, int input_id,
 
 int sg_source_anon_init(struct sg_source * src)
 {
+	memset(src, 0, sizeof(*src));
 	src->device_id = -1;
 	src->input_id = -1;
 	return 0;
