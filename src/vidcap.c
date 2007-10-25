@@ -153,6 +153,7 @@ vidcap_log_level_set(enum vidcap_log_level level)
 		break;
 	case VIDCAP_LOG_DEBUG:
 		log_level = log_level_debug;
+		break;
 	default:
 		return -1;
 	}
