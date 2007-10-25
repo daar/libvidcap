@@ -49,6 +49,7 @@
 
 static int ctrl_c_pressed = 0;
 
+static int opt_quiet = 0;
 static int opt_do_enumeration = 0;
 static int opt_do_defaults = 0;
 static int opt_do_captures = 0;
@@ -201,6 +202,17 @@ static void signal_handler(int s)
 	ctrl_c_pressed = 1;
 }
 
+static void usage(void)
+{
+	fprintf(stderr, "Usage: simplegrab [OPTIONS]\n"
+			" -h  -- show this help message\n"
+			" -q  -- decrease libvidcap verbosity\n"
+			" -e  -- do enumeration test\n"
+			" -d  -- do defaults test\n"
+			" -c  -- do capture test\n"
+			" -n  -- do notification test\n");
+}
+
 static int process_command_line(int argc, char * argv[])
 {
 	int i;
@@ -223,6 +235,13 @@ static int process_command_line(int argc, char * argv[])
 			opt_do_captures = 1;
 		else if ( !strcmp(argv[i], "-n") )
 			opt_do_notifies = 1;
+		else if ( !strcmp(argv[i], "-q") )
+			opt_quiet += 1;
+		else if ( !strcmp(argv[i], "-h") )
+		{
+			usage();
+			exit(0);
+		}
 		else
 		{
 			log_error("unknown option '%s'\n", argv[i]);
@@ -742,7 +761,17 @@ do_notifies()
 int main(int argc, char * argv[])
 {
 	if ( process_command_line(argc, argv) )
+	{
+		usage();
 		return 1;
+	}
+
+	if ( opt_quiet > 1 )
+		vidcap_log_level_set(VIDCAP_LOG_WARN);
+	else if ( opt_quiet > 0 )
+		vidcap_log_level_set(VIDCAP_LOG_INFO);
+	else
+		vidcap_log_level_set(VIDCAP_LOG_DEBUG);
 
 	if ( opt_do_enumeration && do_enumeration() )
 		return 1;
