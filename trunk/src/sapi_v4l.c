@@ -44,6 +44,7 @@ static const char * description = "Video for Linux (v4l) video capture API";
 enum
 {
 	device_path_max = 128,
+	device_num_max = 16,
 	v4l_fps_mask = 0x003f0000,
 	v4l_fps_shift = 16,
 };
@@ -53,10 +54,13 @@ struct sapi_v4l_context
 	pthread_mutex_t mutex;
 	pthread_t notify_thread;
 	int notifying;
+	struct sapi_src_list acquired_src_list;
 };
 
 struct sapi_v4l_src_context
 {
+	struct sapi_v4l_context * v4l_ctx;
+
 	int fd;
 	char device_path[device_path_max];
 	int channel;
@@ -188,11 +192,150 @@ map_palette_to_fourcc(__u16 palette, int * fourcc)
 	return 0;
 }
 
+#if 0
 static void
-scan_device_for_sources(const char * device_path,
-		struct sapi_src_list * src_list,
-		int * new_list_len)
+src_list_debug(const struct sapi_src_list * src_list, const char * name)
 {
+	int i;
+	for ( i = 0; i < src_list->len; ++i )
+		log_debug("%10s: %2d: %s\n", name, i,
+				src_list->list[i].identifier);
+}
+#endif
+
+/* Searches src_list starting at index for a vidcap_src_info that
+ * matches device_path. The source identifier contains the device
+ * path and the channel. For sapi_v4l's purposes, we do _not_ match
+ * the channel -- just the device path.
+ */
+static const struct vidcap_src_info *
+src_list_device_match_next(const struct sapi_src_list * src_list,
+		const char * device_path, int * index)
+{
+	int i;
+
+	for ( i = *index; i < src_list->len; ++i )
+	{
+		const struct vidcap_src_info * src_info = &src_list->list[i];
+		char src_device_path[device_path_max];
+		int src_device_channel;
+
+		memset(src_device_path, 0, sizeof(src_device_path));
+
+		if ( parse_src_identifier(src_info->identifier,
+					src_device_path,
+					sizeof(src_device_path),
+					&src_device_channel) )
+		{
+			log_warn("src_list_device_match_next: invalid src "
+					"identifier \"%s\"\n",
+					src_info->identifier);
+			return 0;
+		}
+
+		if ( strncmp(src_device_path, device_path,
+					sizeof(src_device_path)) == 0 )
+		{
+			*index = i + 1;
+			return src_info;
+		}
+	}
+
+	*index = i;
+
+	return 0;
+}
+
+static const struct vidcap_src_info *
+src_list_src_match_next(const struct sapi_src_list * src_list,
+		const struct vidcap_src_info * src_info, int * index)
+{
+	char device_path[device_path_max];
+	int device_channel;
+
+	if ( parse_src_identifier(src_info->identifier, device_path,
+				sizeof(device_path), &device_channel) )
+	{
+		log_warn("src_list_src_match_next: invalid src "
+				"identifier \"%s\"\n",
+				src_info->identifier);
+		return 0;
+	}
+
+	return src_list_device_match_next(src_list, device_path, index);
+}
+
+/* The idea here is to find a vidcap_src_info in the src_list that
+ * matches the src_info parameter. We then remove the matched src_info
+ * with memmove().
+ *
+ *                0 1 2 3 4 5
+ * original list: p q r s t u  len=6
+ * remove 's':    p q r t u u  len=5
+ */
+static int
+src_list_src_remove(struct sapi_src_list * src_list,
+		const struct vidcap_src_info * src_info)
+{
+	int match_index = 0;
+	const struct vidcap_src_info * matched_src_info =
+		src_list_src_match_next(src_list, src_info, &match_index);
+
+	if ( !matched_src_info )
+		return -1;
+
+	memmove(&src_list->list[match_index - 1],
+			&src_list->list[match_index],
+			sizeof(*matched_src_info) *
+			(src_list->len - match_index));
+
+	src_list->len--;
+
+	return 0;
+}
+
+static int
+src_list_src_append(struct sapi_src_list * src_list,
+		const struct vidcap_src_info * src_info)
+{
+	src_list->len++;
+	src_list->list = realloc(src_list->list,
+			src_list->len * sizeof(*src_info));
+
+	if ( !src_list->list )
+	{
+		log_oom(__FILE__, __LINE__);
+		return -1;
+	}
+
+	memcpy(&src_list->list[src_list->len - 1], src_info, sizeof(*src_info));
+
+	return 0;
+}
+
+static int
+src_list_device_append(struct sapi_src_list * src_list,
+		const char * device_path, int channel,
+		const char * device_name, const char * channel_name)
+{
+	struct vidcap_src_info src_info;
+
+	memset(&src_info, 0, sizeof(src_info));
+
+	snprintf(src_info.identifier, sizeof(src_info.identifier),
+			"%s,%d", device_path, channel);
+
+	snprintf(src_info.description, sizeof(src_info.description),
+			"%s %s", device_name, channel_name);
+
+	return src_list_src_append(src_list, &src_info);
+}
+
+static int
+src_list_device_scan(struct sapi_src_list * src_list,
+		const char * device_path)
+{
+	int ret = 0;
 	int fd;
 	int i;
 	struct video_capability caps;
@@ -200,7 +343,7 @@ scan_device_for_sources(const char * device_path,
 	fd = open(device_path, O_RDONLY);
 
 	if ( fd == -1 )
-		return;
+		return 1;
 
 	/* Ensures file descriptor is closed on exec() */
 	fcntl(fd, F_SETFD, FD_CLOEXEC);
@@ -210,15 +353,18 @@ scan_device_for_sources(const char * device_path,
 	if ( ioctl(fd, VIDIOCGCAP, &caps) == -1 )
 	{
 		log_warn("failed to get capabilities for %s\n", device_path);
+		ret = -1;
 		goto bail;
 	}
 
 	if ( caps.type != VID_TYPE_CAPTURE )
+	{
+		ret = -1;
 		goto bail;
+	}
 
 	for ( i = 0; i < caps.channels; ++i )
 	{
-		struct vidcap_src_info * src_info;
 		struct video_channel channel;
 
 		memset(&channel, 0, sizeof(channel));
@@ -231,18 +377,13 @@ scan_device_for_sources(const char * device_path,
 			continue;
 		}
 
-		*new_list_len += 1;
-
-		if ( *new_list_len > src_list->len )
-			src_list->list = realloc(src_list->list, *new_list_len *
-					sizeof(struct vidcap_src_info));
-
-		src_info = &src_list->list[*new_list_len - 1];
-
-		snprintf(src_info->identifier, sizeof(src_info->identifier),
-				"%s,%d", device_path, channel.channel);
-		snprintf(src_info->description, sizeof(src_info->description),
-				"%s %s", caps.name, channel.name);
+		if ( src_list_device_append(src_list, device_path,
+					channel.channel, caps.name,
+					channel.name) )
+		{
+			ret = -1;
+			goto bail;
+		}
 	}
 
 bail:
@@ -250,36 +391,121 @@ bail:
 	if ( close(fd) == -1 )
 		log_warn("failed to close fd %d for %s (%s)\n",
 				fd, device_path, strerror(errno));
+
+	return ret;
 }
 
+/* Generate device path strings of the sequence:
+ *   /dev/video
+ *   /dev/video0
+ *   /dev/video/0
+ *   /dev/video1
+ *   /dev/video/1
+ *   ...
+ *   /dev/video{device_num_max - 1}
+ *   /dev/video/{device_num_max - 1}
+ */
+static int
+device_path_generate(char * device_path, int device_path_len, int * state)
+{
+	static const char device_prefix[] = "/dev/video";
+	const int device_num = (*state - 1) / 2;
+
+	memset(device_path, 0, device_path_len);
+
+	if ( *state == 0 )
+		snprintf(device_path, device_path_len, "%s",
+				device_prefix);
+	else if ( device_num >= device_num_max )
+		return 0;
+	else if ( *state % 2 )
+		snprintf(device_path, device_path_len, "%s%d",
+				device_prefix, device_num);
+	else
+		snprintf(device_path, device_path_len, "%s/%d",
+				device_prefix, device_num);
+
+	*state += 1;
+
+	return 1;
+}
+
+/* The scanning semantics are a bit tricky. The src_list pointer parameter
+ * may or may not have anything in it. If we were so inclined, we could
+ * potentially reuse the memory in src_list->list; however we just free()
+ * the memory and start over.
+ *
+ * One of the tricky bits is that video devices are open()ed exclusively.
+ * This means that we cannot simply scan with open() and ioctl() calls to
+ * get the complete device list -- we must also include devices that have
+ * already been acquired.
+ *
+ * To this end, we keep an acquired device list as part of the
+ * sapi_v4l_context structure. This list must be taken into account and
+ * managed when we scan, acquire, and release sources.
+ *
+ * Complicating matters further is the fact that a single v4l device may
+ * have multiple "channels". We list each of these channels as a separate
+ * vidcap source, but we can only capture from a single v4l channel from
+ * any particular source. We enforce this exclusivity by matching sources
+ * using the device paths during aquired source list management.
+ *
+ * For example, consider this case:
+ *
+ *   src0 --> /dev/video0 channel 0
+ *   src1 --> /dev/video0 channel 1
+ *   src2 --> /dev/video1 channel 0
+ *
+ * If a user acquires src0, this implies that src1 is unavailable, so we
+ * put both src0 and src1 into the acquired list! Since src2 has a
+ * different device path, it remains available for acquisition.
+ */
 static int
 scan_sources(struct sapi_context * sapi_ctx, struct sapi_src_list * src_list)
 {
-	static const char * device_prefix = "/dev/video";
+	struct sapi_v4l_context * v4l_ctx =
+		(struct sapi_v4l_context *)sapi_ctx->priv;
 	char device_path[device_path_max];
-	int list_len = 0;
-	int i;
+	int generate_index = 0;
 
-	snprintf(device_path, sizeof(device_path), "%s", device_prefix);
+#if 0
+	log_debug("scan_sources start\n");
+	src_list_debug(&sapi_ctx->user_src_list, "usr");
+	src_list_debug(&v4l_ctx->acquired_src_list, "acq");
+#endif
 
-	scan_device_for_sources(device_path, src_list, &list_len);
-
-	for ( i = 0; i < 16; ++i )
+	if ( sapi_ctx->user_src_list.list )
 	{
-		snprintf(device_path, sizeof(device_path), "%s%d",
-				device_prefix, i);
-		scan_device_for_sources(device_path, src_list, &list_len);
-
-		snprintf(device_path, sizeof(device_path), "%s/%d",
-				device_prefix, i);
-		scan_device_for_sources(device_path, src_list, &list_len);
+		free(sapi_ctx->user_src_list.list);
+		sapi_ctx->user_src_list.list = 0;
+		sapi_ctx->user_src_list.len = 0;
 	}
 
-	if ( list_len > src_list->len )
-		src_list->list = realloc(src_list->list,
-				list_len * sizeof(struct vidcap_src_info));
+	while ( device_path_generate(device_path, sizeof(device_path),
+				&generate_index) )
+	{
+		const struct vidcap_src_info * acquired_src_info = 0;
+		int match_index = 0;
 
-	src_list->len = list_len;
+		while ( (acquired_src_info = src_list_device_match_next(
+						&v4l_ctx->acquired_src_list,
+						device_path, &match_index)) )
+		{
+			if ( src_list_src_append(src_list,
+						acquired_src_info) )
+				return -1;
+		}
+
+		if ( !acquired_src_info )
+			if ( src_list_device_scan(src_list, device_path) < 0 )
+				return -1;
+	}
+
+#if 0
+	log_debug("scan_sources finish\n");
+	src_list_debug(&sapi_ctx->user_src_list, "usr");
+	src_list_debug(&v4l_ctx->acquired_src_list, "acq");
+#endif
 
 	return src_list->len;
 }
@@ -502,7 +728,13 @@ source_format_bind(struct sapi_src_context * src_ctx,
 
 	if ( ioctl(v4l_src_ctx->fd, VIDIOCSWIN, &v4l_src_ctx->window) == -1 )
 	{
-		log_warn("failed to set v4l window parameters\n");
+		log_warn("failed to set v4l window parameters x=%d y=%d "
+				"w=%d h=%d fl=0x%08x\n",
+				v4l_src_ctx->window.x,
+				v4l_src_ctx->window.y,
+				v4l_src_ctx->window.width,
+				v4l_src_ctx->window.height,
+				v4l_src_ctx->window.flags);
 		return -1;
 	}
 
@@ -529,6 +761,11 @@ source_release(struct sapi_src_context * src_ctx)
 
 	struct sapi_v4l_src_context * v4l_src_ctx =
 		(struct sapi_v4l_src_context *)src_ctx->priv;
+
+	/* Remove all matching sources from the acquired src list */
+	while ( !src_list_src_remove(&v4l_src_ctx->v4l_ctx->acquired_src_list,
+				&src_ctx->src_info) )
+		;
 
 	if ( v4l_src_ctx->fd < 0 )
 	{
@@ -557,14 +794,56 @@ source_acquire(struct sapi_context * sapi_ctx,
 		struct sapi_src_context * src_ctx,
 		const struct vidcap_src_info * src_info)
 {
+	struct sapi_v4l_context * v4l_ctx =
+		(struct sapi_v4l_context *)sapi_ctx->priv;
 	struct sapi_v4l_src_context * v4l_src_ctx = 0;
+	const struct vidcap_src_info * acquired_src_info;
+	int match_index;
 
 	if ( !src_info )
 	{
-		if ( scan_sources(sapi_ctx, &sapi_ctx->user_src_list) > 0 )
-			src_info = &sapi_ctx->user_src_list.list[0];
-		else
+		int i;
+
+		if ( scan_sources(sapi_ctx, &sapi_ctx->user_src_list) <= 0 )
 			return -1;
+
+		/* Find the first src_info from user_src_list that is
+		 * not in the acquired list.
+		 */
+		for ( i = 0; i < sapi_ctx->user_src_list.len; ++i )
+		{
+			src_info = &sapi_ctx->user_src_list.list[i];
+			match_index = 0;
+
+			if ( !src_list_src_match_next(
+						&v4l_ctx->acquired_src_list,
+						src_info, &match_index) )
+			{
+				break;
+			}
+			else
+			{
+				src_info = 0;
+			}
+		}
+
+		if ( !src_info )
+		{
+			log_error("failed finding default source to acquire\n");
+			return -1;
+		}
+	}
+	else
+	{
+		match_index = 0;
+
+		if ( src_list_src_match_next(&v4l_ctx->acquired_src_list,
+					src_info, &match_index) )
+		{
+			log_error("source \"%s\" already acquired\n",
+					src_info->identifier);
+			return -1;
+		}
 	}
 
 	memcpy(&src_ctx->src_info, src_info, sizeof(src_ctx->src_info));
@@ -576,6 +855,8 @@ source_acquire(struct sapi_context * sapi_ctx,
 		log_oom(__FILE__, __LINE__);
 		return -1;
 	}
+
+	v4l_src_ctx->v4l_ctx = v4l_ctx;
 
 	if ( parse_src_identifier(src_info->identifier,
 				v4l_src_ctx->device_path,
@@ -616,6 +897,19 @@ source_acquire(struct sapi_context * sapi_ctx,
 		log_warn("failed to get v4l picture parameters for %s\n",
 				v4l_src_ctx->device_path);
 		goto bail;
+	}
+
+	/* Add all sources with the same device path to the acquired
+	 * source list.
+	 */
+	match_index = 0;
+	while ( (acquired_src_info = src_list_src_match_next(
+					&sapi_ctx->user_src_list,
+					src_info, &match_index)) )
+	{
+		if ( src_list_src_append(&v4l_ctx->acquired_src_list,
+					acquired_src_info) )
+			return -1;
 	}
 
 	v4l_src_ctx->capturing = 0;
