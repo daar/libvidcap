@@ -52,6 +52,7 @@ static int ctrl_c_pressed = 0;
 static int opt_quiet = 0;
 static int opt_do_enumeration = 0;
 static int opt_do_defaults = 0;
+static int opt_do_double_default = 0;
 static int opt_do_captures = 0;
 static int opt_do_notifies = 0;
 
@@ -221,6 +222,7 @@ static int process_command_line(int argc, char * argv[])
 	{
 		opt_do_enumeration = 1;
 		opt_do_defaults = 1;
+		opt_do_double_default = 1;
 		opt_do_captures = 1;
 		opt_do_notifies = 1;
 	}
@@ -231,6 +233,8 @@ static int process_command_line(int argc, char * argv[])
 			opt_do_enumeration = 1;
 		else if ( !strcmp(argv[i], "-d") )
 			opt_do_defaults = 1;
+		else if ( !strcmp(argv[i], "-2") )
+			opt_do_double_default = 1;
 		else if ( !strcmp(argv[i], "-c") )
 			opt_do_captures = 1;
 		else if ( !strcmp(argv[i], "-n") )
@@ -486,6 +490,133 @@ do_defaults()
 	if ( vidcap_src_release(src) )
 	{
 		log_error("failed to release src\n");
+		return -1;
+	}
+
+	if ( vidcap_sapi_release(sapi) )
+	{
+		log_error("failed to release sapi\n");
+		return -1;
+	}
+
+	vidcap_destroy(vc);
+
+	log_info("Finished defaults\n\n");
+
+	return 0;
+}
+
+static int
+do_double_defaults()
+{
+	vidcap_state * vc;
+	vidcap_sapi * sapi;
+	vidcap_src * src;
+	vidcap_src * src2;
+
+	struct vidcap_sapi_info sapi_info;
+	struct vidcap_src_info src_info;
+	struct vidcap_src_info src_info2;
+	struct vidcap_fmt_info fmt_info;
+	struct vidcap_fmt_info fmt_info2;
+
+	char * fmt_str;
+
+	log_info("Starting defaults\n");
+
+	if ( !(vc = vidcap_initialize()) )
+	{
+		log_error("failed vidcap_initialize()\n");
+		return -1;
+	}
+
+	if ( !(sapi = vidcap_sapi_acquire(vc, 0)) )
+	{
+		log_error("failed to acquire default sapi\n");
+		return -1;
+	}
+
+	if ( vidcap_sapi_info_get(sapi, &sapi_info) )
+	{
+		log_error("failed to get default sapi info\n");
+		return -1;
+	}
+
+	log_info("sapi default: %s | %s\n", sapi_info.identifier,
+			sapi_info.description);
+
+	if ( !(src = vidcap_src_acquire(sapi, 0)) )
+	{
+		log_error("failed to acquire default src\n");
+		return -1;
+	}
+
+	if ( vidcap_src_info_get(src, &src_info) )
+	{
+		log_error("failed to get default src info\n");
+		return -1;
+	}
+
+	log_info(" src default: %s | %s\n", src_info.identifier,
+			src_info.description);
+
+	if ( vidcap_format_bind(src, 0) )
+	{
+		log_error("failed to bind default format\n");
+		return -1;
+	}
+
+	if ( vidcap_format_info_get(src, &fmt_info) )
+	{
+		log_error("failed to get default fmt info\n");
+		return -1;
+	}
+
+	fmt_str = my_fmt_info_str(&fmt_info);
+	log_info(" fmt default: %s\n", fmt_str);
+	free(fmt_str);
+
+	/* Acquire a second default (with first still acquired) */
+	if ( !(src2 = vidcap_src_acquire(sapi, 0)) )
+	{
+		log_error("failed to acquire default src 2\n");
+		return -1;
+	}
+
+	if ( vidcap_src_info_get(src2, &src_info2) )
+	{
+		log_error("failed to get default src info 2\n");
+		return -1;
+	}
+
+	log_info(" src default 2: %s | %s\n", src_info2.identifier,
+			src_info2.description);
+
+	if ( vidcap_format_bind(src2, 0) )
+	{
+		log_error("failed to bind default format 2\n");
+		return -1;
+	}
+
+	if ( vidcap_format_info_get(src2, &fmt_info2) )
+	{
+		log_error("failed to get default fmt info 2\n");
+		return -1;
+	}
+
+	fmt_str = my_fmt_info_str(&fmt_info2);
+	log_info(" fmt default 2: %s\n", fmt_str);
+	free(fmt_str);
+
+	if ( vidcap_src_release(src) )
+	{
+		log_error("failed to release src\n");
+		return -1;
+	}
+
+	if ( vidcap_src_release(src2) )
+	{
+		log_error("failed to release src 2\n");
 		return -1;
 	}
 
@@ -777,6 +908,9 @@ int main(int argc, char * argv[])
 		return 1;
 
 	if ( opt_do_defaults && do_defaults() )
+		return 1;
+
+	if ( opt_do_double_default && do_double_defaults() )
 		return 1;
 
 	if ( opt_do_captures && do_captures() )
