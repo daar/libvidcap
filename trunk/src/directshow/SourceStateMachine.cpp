@@ -291,6 +291,8 @@ SourceStateMachine::waitForCmd(LPVOID lpParam)
 				break;
 			}
 
+			pSrc->okToSendStart_ = true;
+
 			pSrc->doCancelCapture();
 		}
 		else if ( index == startEventIndex )
@@ -340,7 +342,10 @@ int
 SourceStateMachine::start()
 {
 	if ( !okToSendStart_ )
+	{
+		log_warn("ERROR: Source not ready for a start command\n");
 		return -1;
+	}
 
 	okToSendStart_ = false;
 
