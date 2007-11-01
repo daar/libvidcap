@@ -24,7 +24,6 @@
  */
 
 #include <vidcap/converters.h>
-#include "logging.h"
 
 /* NOTE: size of dest buffer must be >= width * height * 2 */
 
@@ -32,17 +31,15 @@
 int
 vidcap_rgb32_to_yuy2(int width, int height, const char * src, char * dest)
 {
-	unsigned char * dst_even, * dst_odd;
-	const unsigned char * src_even, * src_odd;
-	int i, j;
-
-	src_even = (const unsigned char *)src;
-	src_odd = src_even + width * 4;
-	dst_even = (unsigned char *)dest;
-	dst_odd = dest + width * 2;
+	const unsigned char * src_even = (const unsigned char *)src;
+	const unsigned char * src_odd = src_even + width * 4;
+	unsigned char * dst_even = (unsigned char *)dest;
+	unsigned char * dst_odd = dst_even + width * 2;
+	int i;
 
 	for ( i = 0; i < height / 2; ++i )
 	{
+		int j;
 		for ( j = 0; j < width / 2; ++j )
 		{
 			/* NOTE: u and v are taken from different src samples */
