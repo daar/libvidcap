@@ -287,8 +287,12 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 		cap_info.video_data_size = buf_data_size;
 	}
 
-	if ( ( send_frame || error_status ) && cap_callback && cap_data != VIDCAP_INVALID_USER_DATA )
+	if ( ( send_frame || error_status ) && cap_callback &&
+			cap_data != VIDCAP_INVALID_USER_DATA )
 	{
+		/* FIXME: Need to check return code.
+		 *        Application may want capture to stop
+		 */
 		cap_callback(src_ctx, cap_data, &cap_info);
 
 		if ( cap_info.error_status )
