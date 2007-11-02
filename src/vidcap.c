@@ -349,6 +349,9 @@ vidcap_src_release(vidcap_src * src)
 	struct sapi_src_context * src_ctx = (struct sapi_src_context *)src;
 	int ret;
 
+	if ( src_ctx->src_state == src_capturing )
+		return -1;
+
 	ret = src_ctx->release(src_ctx);
 
 	if ( src_ctx->fmt_list_len )
