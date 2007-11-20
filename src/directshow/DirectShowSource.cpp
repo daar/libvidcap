@@ -106,6 +106,8 @@ constructionFailure:
 
 DirectShowSource::~DirectShowSource()
 {
+	delete graphMon_;
+
 	stop();
 
 	if ( nativeMediaType_ )
