@@ -36,7 +36,9 @@ struct sapi_context;
 
 struct frame_info
 {
-	struct vidcap_capture_info *cap_info;
+	char * video_data;
+	int video_data_size;
+	int error_status;
 	int stride;
 };
 

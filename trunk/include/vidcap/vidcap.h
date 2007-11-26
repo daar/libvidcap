@@ -73,7 +73,7 @@ struct vidcap_fmt_info
 
 struct vidcap_capture_info
 {
-	char * video_data;
+	const char * video_data;
 	int video_data_size;
 	int error_status;
 };

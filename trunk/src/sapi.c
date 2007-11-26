@@ -219,15 +219,8 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 	if ( !frame )
 		return -1;
 
-	frame->cap_info = malloc(sizeof(struct vidcap_capture_info));
-	if ( !frame->cap_info )
-	{
-		free(frame);
-		return -1;
-	}
-
-	frame->cap_info->video_data_size = video_data_size;
-	frame->cap_info->error_status = error_status;
+	frame->video_data_size = video_data_size;
+	frame->error_status = error_status;
 	frame->stride = stride;
 
 	if ( src_ctx->use_timer_thread )
@@ -235,15 +228,14 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 		/* Copy this buffer. It might not exist long enough for
 		 * read thread (capture timer thread) to copy it
 		 */
-		frame->cap_info->video_data = malloc(video_data_size);
-		if ( !frame->cap_info->video_data )
+		frame->video_data = malloc(video_data_size);
+		if ( !frame->video_data )
 		{
-			free(frame->cap_info);
 			free(frame);
 			return -1;
 		}
 
-		memcpy(frame->cap_info->video_data, video_data, video_data_size);
+		memcpy(frame->video_data, video_data, video_data_size);
 
 		/* buffer the frame - for processing by the timer thread */
 		double_buffer_insert(src_ctx->double_buff, frame);
@@ -256,7 +248,7 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 	}
 	else
 	{
-		frame->cap_info->video_data = video_data;
+		frame->video_data = video_data;
 
 		/* process the frame now */
 		src_ctx->no_timer_thread_frame = frame;
@@ -303,10 +295,10 @@ deliver_frame(struct sapi_src_context * src_ctx)
 		frame = src_ctx->no_timer_thread_frame;
 	}
 
-	video_data      = frame->cap_info->video_data;
-	video_data_size = frame->cap_info->video_data_size;
+	video_data      = frame->video_data;
+	video_data_size = frame->video_data_size;
 	stride          = frame->stride;
-	error_status    = frame->cap_info->error_status;
+	error_status    = frame->error_status;
 
 	/* FIXME: right now enforce_framerate() and the capture timer
 	 *        thread's main loop BOTH use the frame_time_next field
@@ -381,8 +373,7 @@ deliver_frame(struct sapi_src_context * src_ctx)
 		if ( src_ctx->use_timer_thread )
 		{
 			/* delete frame */
-			free(frame->cap_info->video_data);
-			free(frame->cap_info);
+			free(frame->video_data);
 			free(frame);
 
 			if ( error_status )
