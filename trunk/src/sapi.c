@@ -205,7 +205,7 @@ acknowledge_error(struct sapi_src_context * src_ctx)
 /* NOTE: stride-ignorant sapis should pass a stride of zero */
 int
 sapi_src_capture_notify(struct sapi_src_context * src_ctx,
-		const char * video_data, int video_data_size,
+		char * video_data, int video_data_size,
 		int stride,
 		int error_status)
 {
