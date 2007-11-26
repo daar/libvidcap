@@ -94,7 +94,6 @@ private:
 
 private:
 	struct sapi_src_context * sourceContext_;
-	DShowSrcManager * dshowMgr_;
 	bufferCallbackFunc bufferCB_;
 	cancelCaptureFunc cancelCaptureCB_;
 	void * parent_;
