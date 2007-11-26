@@ -521,7 +521,7 @@ SourceStateMachine::bufferCB( double dblSampleTime, BYTE * pBuff, long buffSize,
 	}
 
 	int ret = sapi_src_capture_notify(instance->sourceContext_,
-			reinterpret_cast<const char *>(pBuff),
+			reinterpret_cast<char *>(pBuff),
 			static_cast<int>(buffSize), 0, 0);
 
 	instance->callbackInProgress_ = false;
