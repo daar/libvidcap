@@ -551,9 +551,7 @@ free_frame_info(void * fr)
 {
 	struct frame_info *frame = (struct frame_info *)fr;
 
-	/* FIXME: unconstify video_data */
-	free(frame->cap_info->video_data);
-	free(frame->cap_info);
+	free(frame->video_data);
 	free(frame);
 }
 
@@ -567,28 +565,19 @@ copy_frame_info(void * fr)
 	if ( !dup_frame )
 		return 0;
 
-	dup_frame->cap_info = calloc(1, sizeof(*dup_frame->cap_info));
-	if ( !dup_frame->cap_info )
-	{
-		free(dup_frame);
-		return 0;
-	}
-
 	dup_frame->stride = frame->stride;
-	dup_frame->cap_info->error_status = frame->cap_info->error_status;
-	dup_frame->cap_info->video_data_size = frame->cap_info->video_data_size;
-	dup_frame->cap_info->video_data = malloc(frame->cap_info->video_data_size);
-	if ( !dup_frame->cap_info->video_data )
+	dup_frame->error_status = frame->error_status;
+	dup_frame->video_data_size = frame->video_data_size;
+	dup_frame->video_data = malloc(frame->video_data_size);
+	if ( !dup_frame->video_data )
 	{
-		free(dup_frame->cap_info);
 		free(dup_frame);
 		return 0;
 	}
 
-	/* FIXME: unconstify cap_info->video_data */
-	memcpy(dup_frame->cap_info->video_data,
-			frame->cap_info->video_data,
-			frame->cap_info->video_data_size);
+	memcpy(dup_frame->video_data,
+			frame->video_data,
+			frame->video_data_size);
 
 	return dup_frame;
 }
