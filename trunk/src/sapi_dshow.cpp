@@ -22,14 +22,12 @@
 // <http://www.gnu.org/licenses/>.
 //
 
-#include <windows.h>
 #include <stdio.h>
 
+#include "sapi.h"
 #include "SourceStateMachine.h"
 #include "DShowSrcManager.h"
-
 #include "logging.h"
-#include "sapi.h"
 
 static const char * identifier = "DirectShow";
 static const char * description = "DirectShow video capture API";
@@ -177,7 +175,7 @@ source_acquire(struct sapi_context * sapi_ctx,
 		return -1;
 	}
 
-	if ( src_ctx->priv == 0 )
+	if ( src_ctx->priv == (void *)0 )
 	{
 		log_warn("failed constructing source state machine for '%s'\n",
 				src_info->identifier);

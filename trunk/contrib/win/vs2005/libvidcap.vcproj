@@ -228,6 +228,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath="..\..\..\src\double_buffer.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\src\directshow\DShowSrcManager.cpp"
 				>
 				<FileConfiguration
@@ -372,6 +376,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\src\double_buffer.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\src\directshow\DShowSrcManager.h"
 				>
 			</File>
@@ -385,6 +393,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\src\logging.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\src\os_funcs.h"
 				>
 			</File>
 			<File

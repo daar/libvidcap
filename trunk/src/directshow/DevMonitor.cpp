@@ -22,11 +22,12 @@
 // <http://www.gnu.org/licenses/>.
 //
 
-#include "DevMonitor.h"
+#include "os_funcs.h"
 #include <dbt.h>
 #include <process.h>
 #include <string>
 #include "sapi_context.h"
+#include "DevMonitor.h"
 #include "logging.h"
 
 DevMonitor::DevMonitor()

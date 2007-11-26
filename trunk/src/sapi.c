@@ -30,35 +30,8 @@
 #include "logging.h"
 #include "sapi.h"
 
-#ifndef HAVE_GETTIMEOFDAY
-static __inline int gettimeofday(struct timeval * tv, struct timezone * tz)
-#ifdef WIN32
-{
-	FILETIME ft;
-	LARGE_INTEGER li;
-	__int64 t;
-	static int tzflag;
-	const __int64 EPOCHFILETIME = 116444736000000000i64;
-	if ( tv )
-	{
-		GetSystemTimeAsFileTime(&ft);
-		li.LowPart  = ft.dwLowDateTime;
-		li.HighPart = ft.dwHighDateTime;
-		t  = li.QuadPart;       /* In 100-nanosecond intervals */
-		t -= EPOCHFILETIME;     /* Offset to the Epoch time */
-		t /= 10;                /* In microseconds */
-		tv->tv_sec  = (long)(t / 1000000);
-		tv->tv_usec = (long)(t % 1000000);
-	}
-
-	return 0;
-
-#else /* !defined(_WINDOWS) */
-	errno = ENOSYS;
-	return -1;
-#endif
-}
-#endif
+static int
+deliver_frame(struct sapi_src_context * src_ctx);
 
 static __inline int
 tv_greater_or_equal(struct timeval * t1, struct timeval * t0)
@@ -76,7 +49,7 @@ tv_greater_or_equal(struct timeval * t1, struct timeval * t0)
 }
 
 static __inline void
-tv_add_usecs(struct timeval *t1, struct timeval *t0, int usecs)
+tv_add_usecs(struct timeval *t1, struct timeval *t0, long usecs)
 {
 	int secs_carried = 0;
 
@@ -216,6 +189,19 @@ sapi_src_format_list_build(struct sapi_src_context * src_ctx)
 	return 0;
 }
 
+static void
+wait_for_error_ack(struct sapi_src_context * src_ctx)
+{
+	while ( !src_ctx->capture_error_ack )
+		vc_millisleep(10);
+}
+
+static void
+acknowledge_error(struct sapi_src_context * src_ctx)
+{
+	src_ctx->capture_error_ack = 1;
+}
+
 /* NOTE: stride-ignorant sapis should pass a stride of zero */
 int
 sapi_src_capture_notify(struct sapi_src_context * src_ctx,
@@ -223,24 +209,120 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 		int stride,
 		int error_status)
 {
-	struct vidcap_capture_info cap_info;
-
 	/* NOTE: We may be called here by the capture thread while the
 	 * main thread is clearing capture_data and capture_callback
 	 * from within vidcap_src_capture_stop().
 	 */
+
+	/* Package the video information */
+	struct frame_info * frame = malloc(sizeof(*frame));
+	if ( !frame )
+		return -1;
+
+	frame->cap_info = malloc(sizeof(struct vidcap_capture_info));
+	if ( !frame->cap_info )
+	{
+		free(frame);
+		return -1;
+	}
+
+	frame->cap_info->video_data_size = video_data_size;
+	frame->cap_info->error_status = error_status;
+	frame->stride = stride;
+
+	if ( src_ctx->use_timer_thread )
+	{
+		/* Copy this buffer. It might not exist long enough for
+		 * read thread (capture timer thread) to copy it
+		 */
+		frame->cap_info->video_data = malloc(video_data_size);
+		if ( !frame->cap_info->video_data )
+		{
+			free(frame->cap_info);
+			free(frame);
+			return -1;
+		}
+
+		memcpy(frame->cap_info->video_data, video_data, video_data_size);
+
+		/* buffer the frame - for processing by the timer thread */
+		double_buffer_insert(src_ctx->double_buff, frame);
+
+		/* If there's an error, wait here until it's acknowledged
+		 * by the timer thread (after having delivered it to the app).
+		 */
+		if ( error_status )
+			wait_for_error_ack(src_ctx);
+	}
+	else
+	{
+		frame->cap_info->video_data = video_data;
+
+		/* process the frame now */
+		src_ctx->no_timer_thread_frame = frame;
+		deliver_frame(src_ctx);
+	}
+
+	if ( error_status )
+	{
+		src_ctx->src_state = src_bound;
+		src_ctx->capture_callback = 0;
+		src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
+	}
+
+	return 0;
+}
+
+static int
+deliver_frame(struct sapi_src_context * src_ctx)
+{
 	vidcap_src_capture_callback cap_callback = src_ctx->capture_callback;
 	void * cap_data = src_ctx->capture_data;
 	void * buf = 0;
 	int buf_data_size = 0;
-
 	int send_frame = 0;
 
-	if ( !error_status )
-		send_frame = enforce_framerate(src_ctx);
+	struct vidcap_capture_info cap_info;
 
-	if ( send_frame < 0 )
-		error_status = -1000;
+	struct frame_info * frame;
+	const char * video_data;
+	int video_data_size;
+	int stride;
+	int error_status;
+
+	if ( src_ctx->use_timer_thread )
+	{
+		frame = (struct frame_info *)
+				double_buffer_read(src_ctx->double_buff);
+
+		if ( !frame )
+			return -1;
+	}
+	else
+	{
+		frame = src_ctx->no_timer_thread_frame;
+	}
+
+	video_data      = frame->cap_info->video_data;
+	video_data_size = frame->cap_info->video_data_size;
+	stride          = frame->stride;
+	error_status    = frame->cap_info->error_status;
+
+	/* FIXME: right now enforce_framerate() and the capture timer
+	 *        thread's main loop BOTH use the frame_time_next field
+	 */
+	if ( src_ctx->use_timer_thread )
+	{
+		send_frame = 1;
+	}
+	else
+	{
+		if ( !error_status )
+			send_frame = enforce_framerate(src_ctx);
+
+		if ( send_frame < 0 )
+			error_status = -1000;
+	}
 
 	cap_info.error_status = error_status;
 
@@ -290,20 +372,141 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 	if ( ( send_frame || error_status ) && cap_callback &&
 			cap_data != VIDCAP_INVALID_USER_DATA )
 	{
-		/* FIXME: Need to check return code.
-		 *        Application may want capture to stop
+		/* FIXME: Need to check return code (and pass it back).
+		 *        Application may want capture to stop.
+		 *        Ensure we don't perform any more callbacks.
 		 */
 		cap_callback(src_ctx, cap_data, &cap_info);
 
-		if ( cap_info.error_status )
+		if ( src_ctx->use_timer_thread )
 		{
-			src_ctx->src_state = src_bound;
-			src_ctx->capture_callback = 0;
-			src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
+			/* delete frame */
+			free(frame->cap_info->video_data);
+			free(frame->cap_info);
+			free(frame);
+
+			if ( error_status )
+			{
+				/* Let capture thread know that the app
+				 * Has received the error status.
+				 * Ensure we don't deliver any more frames.
+				 */
+				acknowledge_error(src_ctx);
+
+				/* inform calling function of error */
+				return 1;
+			}
 		}
 	}
 
 	return 0;
+}
+
+unsigned int
+STDCALL sapi_src_timer_thread_func(void *args)
+{
+	struct sapi_src_context * src_ctx = args;
+	struct timeval  tv_now;
+
+	/* change to faster rate at capture time, and reduce when capture stopped */
+	const long idle_state_sleep_period_ms = 100;
+	long sleep_ms = idle_state_sleep_period_ms;
+	int first_time = 1;
+	const int sleeps_per_capture = 1;
+	int got_frame = 0;
+	int ret;
+	int capture_error = 0;    /* FIXME: perhaps should exit on error */
+
+	src_ctx->timer_thread_idle = 1;
+
+	if ( gettimeofday(&tv_now, 0) )
+	{
+		src_ctx->capture_timer_thread_started = -1;
+		log_error("gettimeofday not supported\n");
+		return -1;
+	}
+
+	src_ctx->frame_time_next.tv_sec = tv_now.tv_sec;
+	src_ctx->frame_time_next.tv_usec = tv_now.tv_usec;
+
+	log_info("capture timer thread now running\n");
+	src_ctx->capture_timer_thread_started = 1;
+
+	while ( !src_ctx->kill_timer_thread )
+	{
+		gettimeofday(&tv_now, 0);
+
+		/* time to attempt to read a frame? */
+		if ( capture_error || src_ctx->src_state != src_capturing ||
+				!tv_greater_or_equal(&tv_now, &src_ctx->frame_time_next) )
+		{
+			if ( src_ctx->src_state != src_capturing )
+			{
+				sleep_ms = idle_state_sleep_period_ms;
+				first_time = 1;
+			}
+
+			vc_millisleep(sleep_ms);
+		}
+		else
+		{
+			src_ctx->timer_thread_idle = 0;
+			/* FIXME: memory barrier needed? */
+
+			/* attempt to read and deliver a frame */
+			ret = deliver_frame(src_ctx);
+
+			got_frame = !ret;
+			capture_error = ret > 0;
+
+			/* Is this the first frame? */
+			if ( got_frame && first_time )
+			{
+				first_time = 0;
+
+				/* re-initialize when next to check for a frame */
+				src_ctx->frame_time_next.tv_sec = tv_now.tv_sec;
+				src_ctx->frame_time_next.tv_usec = tv_now.tv_usec;
+
+				sleep_ms = (1000 / sleeps_per_capture) *
+					src_ctx->fmt_nominal.fps_denominator /
+					src_ctx->fmt_nominal.fps_numerator;
+			}
+
+			if ( !first_time )
+			{
+				/* update when next to check for a frame */
+				/* FIXME: reduce round-off */
+				tv_add_usecs(&src_ctx->frame_time_next, &src_ctx->frame_time_next,
+						1000000 *
+						src_ctx->fmt_nominal.fps_denominator /
+						src_ctx->fmt_nominal.fps_numerator);
+			}
+			else
+			{
+				/* still no first frame */
+				/* update when next to check for a frame */
+				tv_add_usecs(&src_ctx->frame_time_next, &tv_now,
+						1000000 *
+						src_ctx->fmt_nominal.fps_denominator /
+						src_ctx->fmt_nominal.fps_numerator);
+			}
+		}
+
+		/* FIXME: memory barrier needed? */
+		src_ctx->timer_thread_idle = 1;
+	}
+
+	log_info("capture timer thread now exiting...\n");
+
+	return 0;
+}
+
+void
+sapi_src_timer_thread_idled(struct sapi_src_context * src_ctx)
+{
+	while ( !src_ctx->timer_thread_idle )
+		vc_millisleep(10);
 }
 
 int
@@ -333,3 +536,4 @@ sapi_can_convert_native_to_nominal(const struct vidcap_fmt_info * fmt_native,
 
 	return 0;
 }
+

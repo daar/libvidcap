@@ -22,11 +22,9 @@
 // <http://www.gnu.org/licenses/>.
 //
 
-#include <windows.h>
-
+#include "sapi.h"
 #include "hotlist.h"
 #include "logging.h"
-#include "sapi.h"
 #include "SourceStateMachine.h"
 
 SourceStateMachine::SourceStateMachine(struct sapi_src_context *src,
