@@ -26,12 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vidcap/vidcap.h>
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "logging.h"
 #include "sapi_context.h"
 #include "sapi.h"
@@ -312,6 +306,41 @@ vidcap_src_acquire(vidcap_sapi * sapi,
 		return 0;
 	}
 
+	/* TODO: right now we always use the timer thread to enforce
+	 *        a very accurate framerate. Alternatively, we could
+	 *        allow an application to choose to forego this feature
+	 *        and the associated overhead
+	 */
+	src_ctx->use_timer_thread = 1;
+
+	if ( src_ctx->use_timer_thread )
+	{
+		src_ctx->kill_timer_thread = 0;
+		src_ctx->capture_timer_thread_started = 0;
+		src_ctx->capture_timer_thread = 0;
+		/* FIXME: memory barrier needed? */
+
+		if ( vc_create_thread(&src_ctx->capture_timer_thread,
+					sapi_src_timer_thread_func, src_ctx,
+					&src_ctx->capture_timer_thread_id) )
+		{
+			src_ctx->capture_timer_thread = 0;
+			goto bail;
+		}
+
+		/* ensure thread has started before proceeding */
+		while ( !src_ctx->capture_timer_thread_started )
+			vc_millisleep(10);
+
+		if ( src_ctx->capture_timer_thread_started < 0 )
+		{
+			log_error("source timer thread failed to start.\n");
+			goto bail;
+		}
+
+		log_info("using a capture timer thread for this source\n");
+	}
+
 	if ( sapi_ctx->acquire_source(sapi_ctx, src_ctx, src_info) )
 	{
 		log_error("failed to acquire %s\n", src_info ?
@@ -330,6 +359,15 @@ vidcap_src_acquire(vidcap_sapi * sapi,
 	return src_ctx;
 
 bail:
+	/* wait for it to exit (if it exists) */
+	if ( src_ctx->use_timer_thread && src_ctx->capture_timer_thread )
+	{
+		/* signal to timer thread to stop */
+		src_ctx->kill_timer_thread = 1;
+
+		vc_thread_join(&src_ctx->capture_timer_thread);
+	}
+
 	free(src_ctx);
 	return 0;
 }
@@ -351,6 +389,15 @@ vidcap_src_release(vidcap_src * src)
 
 	if ( src_ctx->src_state == src_capturing )
 		return -1;
+
+	if ( src_ctx->use_timer_thread && src_ctx->capture_timer_thread )
+	{
+		/* signal timer thread to exit */
+		src_ctx->kill_timer_thread = 1;
+
+		/* wait for it to exit */
+		vc_thread_join(&src_ctx->capture_timer_thread);
+	}
 
 	ret = src_ctx->release(src_ctx);
 
@@ -499,6 +546,53 @@ vidcap_format_info_get(vidcap_src * src,
 	return 0;
 }
 
+void
+free_frame_info(void * fr)
+{
+	struct frame_info *frame = (struct frame_info *)fr;
+
+	/* FIXME: unconstify video_data */
+	free(frame->cap_info->video_data);
+	free(frame->cap_info);
+	free(frame);
+}
+
+void *
+copy_frame_info(void * fr)
+{
+	struct frame_info *frame = (struct frame_info *)fr;
+
+	struct frame_info *dup_frame = malloc(sizeof(*dup_frame));
+
+	if ( !dup_frame )
+		return 0;
+
+	dup_frame->cap_info = calloc(1, sizeof(*dup_frame->cap_info));
+	if ( !dup_frame->cap_info )
+	{
+		free(dup_frame);
+		return 0;
+	}
+
+	dup_frame->stride = frame->stride;
+	dup_frame->cap_info->error_status = frame->cap_info->error_status;
+	dup_frame->cap_info->video_data_size = frame->cap_info->video_data_size;
+	dup_frame->cap_info->video_data = malloc(frame->cap_info->video_data_size);
+	if ( !dup_frame->cap_info->video_data )
+	{
+		free(dup_frame->cap_info);
+		free(dup_frame);
+		return 0;
+	}
+
+	/* FIXME: unconstify cap_info->video_data */
+	memcpy(dup_frame->cap_info->video_data,
+			frame->cap_info->video_data,
+			frame->cap_info->video_data_size);
+
+	return dup_frame;
+}
+
 int
 vidcap_src_capture_start(vidcap_src * src,
 		vidcap_src_capture_callback callback,
@@ -524,6 +618,16 @@ vidcap_src_capture_start(vidcap_src * src,
 	if ( !src_ctx->frame_times )
 		return -2;
 
+	src_ctx->double_buff = double_buffer_create(&free_frame_info,
+			&copy_frame_info);
+
+	if ( !src_ctx->double_buff )
+	{
+		sliding_window_destroy(src_ctx->frame_times);
+		src_ctx->frame_times = 0;
+		return -5;
+	}
+
 	src_ctx->capture_callback = callback;
 	src_ctx->capture_data = user_data;
 
@@ -531,6 +635,10 @@ vidcap_src_capture_start(vidcap_src * src,
 	{
 		src_ctx->capture_callback = 0;
 		src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
+
+		double_buffer_destroy(src_ctx->double_buff);
+		src_ctx->double_buff = 0;
+
 		sliding_window_destroy(src_ctx->frame_times);
 		src_ctx->frame_times = 0;
 		return ret;
@@ -551,12 +659,23 @@ vidcap_src_capture_stop(vidcap_src * src)
 
 	ret = src_ctx->stop_capture(src_ctx);
 
-	sliding_window_destroy(src_ctx->frame_times);
+	/* signal to timer thread that capture has stopped */
+	src_ctx->src_state = src_bound;
 
+	if ( src_ctx->use_timer_thread )
+	{
+		/* FIXME: memory barrier needed? */
+		sapi_src_timer_thread_idled(src_ctx);
+	}
+
+	double_buffer_destroy(src_ctx->double_buff);
+	src_ctx->double_buff = 0;
+
+	sliding_window_destroy(src_ctx->frame_times);
 	src_ctx->frame_times = 0;
+
 	src_ctx->capture_callback = 0;
 	src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
-	src_ctx->src_state = src_bound;
 
 	return ret;
 }

@@ -26,25 +26,19 @@
 #ifndef _SAPI_CONTEXT_H
 #define _SAPI_CONTEXT_H
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#ifdef WIN32
-#include <windows.h>
-#endif
-
-#if defined(HAVE_NANOSLEEP) || defined(HAVE_GETTIMEOFDAY)
-#include <sys/time.h>
-#include <time.h>
-#endif
-
 #include <vidcap/vidcap.h>
+#include "double_buffer.h"
 #include "sliding_window.h"
 
 #include "conv.h"
 
 struct sapi_context;
+
+struct frame_info
+{
+	struct vidcap_capture_info *cap_info;
+	int stride;
+};
 
 struct sapi_src_context
 {
@@ -64,6 +58,7 @@ struct sapi_src_context
 	struct vidcap_src_info src_info;
 	struct sliding_window * frame_times;
 	struct timeval frame_time_next;
+	struct double_buffer * double_buff;
 
 	struct vidcap_fmt_info fmt_nominal;
 	struct vidcap_fmt_info fmt_native;
@@ -81,6 +76,15 @@ struct sapi_src_context
 
 	vidcap_src_capture_callback capture_callback;
 	void * capture_data;
+
+	int use_timer_thread;
+	struct frame_info * no_timer_thread_frame;
+	vc_thread capture_timer_thread;
+	unsigned int capture_timer_thread_id;
+	int capture_timer_thread_started;
+	int timer_thread_idle;
+	int kill_timer_thread;
+	int capture_error_ack;
 
 	void * priv;
 };
@@ -123,5 +127,11 @@ sapi_src_fps_info_init(struct sapi_src_context *);
 
 void
 sapi_src_fps_info_clean(struct sapi_src_context *);
+
+void
+sapi_src_timer_thread_idled(struct sapi_src_context * src_ctx);
+
+unsigned int
+STDCALL sapi_src_timer_thread_func(void *);
 
 #endif

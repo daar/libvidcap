@@ -22,7 +22,7 @@
 // <http://www.gnu.org/licenses/>.
 //
 
-#include <windows.h>
+#include "os_funcs.h"
 #include <cstring>
 #include <cstdio>
 #include <cwchar>
@@ -686,6 +686,9 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 		static_cast<double>(fmtNominal->fps_denominator);
 
 	// check framerate
+	// TODO: a timer thread could enforce this framerate,
+	//       but would need to pass src_ctx->use_timer_thread here
+	//       to know that
 	if ( fps > fpsMax )
 	{
 		freeMediaType(*pMediaType);

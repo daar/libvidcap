@@ -22,7 +22,7 @@
 // <http://www.gnu.org/licenses/>.
 //
 
-#include <windows.h>
+#include "os_funcs.h"
 #include <cstring>
 #include <cstdio>
 #include <cwchar>

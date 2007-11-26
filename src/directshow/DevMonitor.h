@@ -25,20 +25,7 @@
 #ifndef _DEVMONITOR_H_
 #define _DEVMONITOR_H_
 
-#include <windows.h>
 #include <vidcap/vidcap.h>
-
-// Allow use of features specific to Windows XP or later.      
-#ifndef _WIN32_WINNT
-
-// Change this to the appropriate value to target other versions of Windows.
-// see: http://msdn2.microsoft.com/en-us/library/aa383745.aspx
-#define _WIN32_WINNT 0x0501
-
-#endif						
-
-// Exclude rarely-used stuff from Windows headers
-#define WIN32_LEAN_AND_MEAN
 
 class DevMonitor
 {

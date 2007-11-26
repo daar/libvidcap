@@ -19,10 +19,13 @@ libvidcap_la_SOURCES =			\
 	conv_to_rgb.c			\
 	conv_to_i420.c			\
 	conv_to_yuy2.c			\
+	double_buffer.c			\
+	double_buffer.h			\
 	hotlist.c			\
 	hotlist.h			\
 	logging.c			\
 	logging.h			\
+	os_funcs.h			\
 	sapi.c				\
 	sapi.h				\
 	sapi_context.h			\
