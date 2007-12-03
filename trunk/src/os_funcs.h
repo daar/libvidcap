@@ -112,58 +112,65 @@ vc_create_thread(vc_thread *thread,
 		unsigned int (STDCALL * thread_func)(void *),
 		void *args, unsigned int *thread_id)
 {
+	int ret = 0;
 #ifdef WIN32
 	*thread = (uintptr_t)_beginthreadex(NULL, 0, thread_func,
 			(void *)args, 0, thread_id);
 
 	/* FIXME: log the error */
 	if ( thread == 0 )
-		return -1;
+		ret = errno;
 #else
-	int ret;
 	void * (*func)(void *) = (void * (*)(void *))thread_func;
 
 	ret = pthread_create(thread, NULL, func, args);
 
-	/* FIXME: log the error */
-	if ( ret )
-		return -1;
+	/* FIXME: log an error */
 #endif
 
-	return 0;
+	return ret;
 }
 
-static __inline void
+static __inline int
 vc_thread_join(vc_thread *thread)
 {
 #ifdef WIN32
 	HANDLE _thread = (HANDLE)thread;
 
-	WaitForSingleObject(_thread, INFINITE);
+	DWORD ret = WaitForSingleObject(_thread, INFINITE);
+
+	if ( ret == WAIT_FAILED )
+		return GetLastError();
+
+	return 0;
 #else
 	pthread_t *_thread = (pthread_t *)thread;
 
-	pthread_join(*_thread, 0);
+	return pthread_join(*_thread, 0);
 #endif
 }
 
-static __inline void
+static __inline int
 vc_mutex_init(vc_mutex *m)
 {
 #ifdef WIN32
 	InitializeCriticalSection(m);
+
+	return 0;
 #else
-	pthread_mutex_init(m, NULL);
+	return pthread_mutex_init(m, NULL);
 #endif
 }
 
-static __inline void
+static __inline int
 vc_mutex_lock(vc_mutex *m)
 {
 #ifdef WIN32
 	EnterCriticalSection(m);
+
+	return 0;
 #else
-	pthread_mutex_lock(m);
+	return pthread_mutex_lock(m);
 #endif
 }
 
@@ -177,23 +184,27 @@ vc_mutex_trylock(vc_mutex *m)
 #endif
 }
 
-static __inline void
+static __inline int
 vc_mutex_unlock(vc_mutex *m)
 {
 #ifdef WIN32
 	LeaveCriticalSection(m);
+
+	return 0;
 #else
-	pthread_mutex_unlock(m);
+	return pthread_mutex_unlock(m);
 #endif
 }
 
-static __inline void
+static __inline int
 vc_mutex_destroy(vc_mutex *m)
 {
 #ifdef WIN32
 	DeleteCriticalSection(m);
+
+	return 0;
 #else
-	pthread_mutex_destroy(m);
+	return pthread_mutex_destroy(m);
 #endif
 }
 
