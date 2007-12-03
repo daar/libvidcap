@@ -100,7 +100,8 @@ DShowSrcManager::scan(struct sapi_src_list * srcList) const
 	if ( !pCreateDevEnum )
 	{
 		log_error("failed creating device enumerator - to scan\n");
-		return -1;
+		srcList->len = newListLen;
+		return 0;
 	}
 
 	// Enumerate video capture devices
@@ -112,7 +113,8 @@ DShowSrcManager::scan(struct sapi_src_list * srcList) const
 	if ( !pEm )
 	{
 		log_error("Failed creating enumerator moniker\n");
-		return -1;
+		srcList->len = newListLen;
+		return 0;
 	}
 
 	pEm->Reset();
@@ -128,7 +130,9 @@ DShowSrcManager::scan(struct sapi_src_list * srcList) const
 		if ( FAILED(hr) )
 		{
 			log_error("failed CreateBindCtx\n");
-			return -1;
+			pM->Release();
+			srcList->len = newListLen;
+			return srcList->len;
 		}
 
 		IBaseFilter * pCaptureFilter = 0;
