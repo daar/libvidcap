@@ -219,6 +219,13 @@ sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 	if ( !frame )
 		return -1;
 
+	/* Screen-out useless callbacks */
+	if ( video_data_size < 1 && !error_status )
+	{
+		log_info("callback with no data?\n");
+		return 0;
+	}
+
 	frame->video_data_size = video_data_size;
 	frame->error_status = error_status;
 	frame->stride = stride;
@@ -398,8 +405,6 @@ STDCALL sapi_src_timer_thread_func(void *args)
 {
 	struct sapi_src_context * src_ctx = args;
 	struct timeval  tv_now;
-
-	/* change to faster rate at capture time, and reduce when capture stopped */
 	const long idle_state_sleep_period_ms = 100;
 	long sleep_ms = idle_state_sleep_period_ms;
 	int first_time = 1;
@@ -420,14 +425,13 @@ STDCALL sapi_src_timer_thread_func(void *args)
 	src_ctx->frame_time_next.tv_sec = tv_now.tv_sec;
 	src_ctx->frame_time_next.tv_usec = tv_now.tv_usec;
 
-	log_info("capture timer thread now running\n");
 	src_ctx->capture_timer_thread_started = 1;
 
 	while ( !src_ctx->kill_timer_thread )
 	{
 		gettimeofday(&tv_now, 0);
 
-		/* time to attempt to read a frame? */
+		/* sleep or read? */
 		if ( capture_error || src_ctx->src_state != src_capturing ||
 				!tv_greater_or_equal(&tv_now, &src_ctx->frame_time_next) )
 		{
@@ -436,6 +440,16 @@ STDCALL sapi_src_timer_thread_func(void *args)
 				sleep_ms = idle_state_sleep_period_ms;
 				first_time = 1;
 			}
+			else if ( !capture_error )
+			{
+				/* sleep just enough */
+				sleep_ms = ((src_ctx->frame_time_next.tv_sec - tv_now.tv_sec) *
+						1000000L + src_ctx->frame_time_next.tv_usec -
+						tv_now.tv_usec) / 1000L;
+			}
+
+			if ( sleep_ms < 0 )
+				sleep_ms = 0;
 
 			vc_millisleep(sleep_ms);
 		}
@@ -458,16 +472,11 @@ STDCALL sapi_src_timer_thread_func(void *args)
 				/* re-initialize when next to check for a frame */
 				src_ctx->frame_time_next.tv_sec = tv_now.tv_sec;
 				src_ctx->frame_time_next.tv_usec = tv_now.tv_usec;
-
-				sleep_ms = (1000 / sleeps_per_capture) *
-					src_ctx->fmt_nominal.fps_denominator /
-					src_ctx->fmt_nominal.fps_numerator;
 			}
 
 			if ( !first_time )
 			{
 				/* update when next to check for a frame */
-				/* FIXME: reduce round-off */
 				tv_add_usecs(&src_ctx->frame_time_next, &src_ctx->frame_time_next,
 						1000000 *
 						src_ctx->fmt_nominal.fps_denominator /
@@ -487,8 +496,6 @@ STDCALL sapi_src_timer_thread_func(void *args)
 		/* FIXME: memory barrier needed? */
 		src_ctx->timer_thread_idle = 1;
 	}
-
-	log_info("capture timer thread now exiting...\n");
 
 	return 0;
 }
