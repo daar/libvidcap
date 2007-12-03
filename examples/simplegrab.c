@@ -135,7 +135,7 @@ static void my_sleep_ms(int milliseconds)
 
 	nanosleep(&tv, 0);
 
-#elif defined(HAVE_SLEEP)
+#elif defined(_WIN32)
 	Sleep(milliseconds);
 #else
 #error No sleep function available.
