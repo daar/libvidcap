@@ -47,7 +47,7 @@ public:
 	}
 
 private:
-	static DWORD WINAPI waitForCmd(LPVOID);
+	static unsigned int STDCALL waitForCmd(void *);
 	void terminate();
 	void doStart();
 	void doStop();
@@ -70,8 +70,8 @@ private:
 	HANDLE eventStop_;
 	HANDLE eventTerminate_;
 	HANDLE eventCancel_;
-	void * sourceThread_;
-	DWORD sourceThreadID_;
+	vc_thread sourceThread_;
+	unsigned int sourceThreadID_;
 
 	bool okToSendStart_;
 	bool okToSendStop_;

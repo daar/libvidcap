@@ -25,7 +25,7 @@
 #ifndef _GRAPHMONITOR_H_
 #define _GRAPHMONITOR_H_
 
-#include <windows.h>
+#include "os_funcs.h"
 
 class GraphMonitor
 {
@@ -37,7 +37,7 @@ public:
 	~GraphMonitor();
 
 private:
-	static DWORD WINAPI monitorGraph(LPVOID lpParam);
+	static unsigned int STDCALL monitorGraph(void * param);
 
 private:
 	HANDLE *graphHandle_;
@@ -47,8 +47,8 @@ private:
 	HANDLE initDoneEvent_;
 	HANDLE terminateEvent_;
 
-	void * graphMonitorThread_;
-	DWORD graphMonitorThreadID_;
+	vc_thread graphMonitorThread_;
+	unsigned int graphMonitorThreadID_;
 };
 
 #endif

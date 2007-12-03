@@ -85,15 +85,9 @@ SourceStateMachine::SourceStateMachine(struct sapi_src_context *src,
 	}
 
 	// pass instance to thread
-	sourceThread_ = CreateThread(
-			NULL,
-			0,
-			(LPTHREAD_START_ROUTINE)(&SourceStateMachine::waitForCmd),
-			this,
-			0,
-			&sourceThreadID_);
-
-	if ( sourceThread_ != NULL )
+	if ( !vc_create_thread(&sourceThread_,
+				&SourceStateMachine::waitForCmd,
+				this, &sourceThreadID_) )
 	{
 		// wait for signal from thread that it is ready
 		WaitForSingleObject(eventInitDone_, INFINITE);
@@ -123,7 +117,7 @@ SourceStateMachine::~SourceStateMachine()
 	}
 
 	// wait for thread to shutdown
-	DWORD rc = WaitForSingleObject(sourceThread_, INFINITE);
+	DWORD rc = WaitForSingleObject((HANDLE)sourceThread_, INFINITE);
 
 	if ( rc == WAIT_FAILED )
 	{
@@ -231,11 +225,11 @@ SourceStateMachine::createEvents()
 	return 0;
 }
 
-DWORD WINAPI
-SourceStateMachine::waitForCmd(LPVOID lpParam)
+unsigned int
+SourceStateMachine::waitForCmd(void *param)
 {
 	// extract instance
-	SourceStateMachine * pSrc = (SourceStateMachine *)lpParam;
+	SourceStateMachine * pSrc = (SourceStateMachine *)param;
 
 	// signal to main thread that we are ready for commands
 	if ( !SetEvent(pSrc->eventInitDone_) )
