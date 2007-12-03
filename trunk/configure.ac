@@ -44,7 +44,7 @@ fi
 
 PKG_PROG_PKG_CONFIG
 
-AC_CHECK_FUNCS(nanosleep gettimeofday snprintf Sleep)
+AC_CHECK_FUNCS(nanosleep gettimeofday snprintf)
 
 AC_CHECK_HEADER(linux/videodev.h,
     have_v4l=yes, have_v4l=no)
