@@ -408,7 +408,6 @@ STDCALL sapi_src_timer_thread_func(void *args)
 	const long idle_state_sleep_period_ms = 100;
 	long sleep_ms = idle_state_sleep_period_ms;
 	int first_time = 1;
-	const int sleeps_per_capture = 1;
 	int got_frame = 0;
 	int ret;
 	int capture_error = 0;    /* FIXME: perhaps should exit on error */
