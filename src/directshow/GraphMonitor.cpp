@@ -68,15 +68,9 @@ GraphMonitor::GraphMonitor(HANDLE *graphHandle,
 	}
 
 	// create thread, pass instance
-	graphMonitorThread_ = CreateThread( 
-			NULL,
-			0,
-			(LPTHREAD_START_ROUTINE)(&GraphMonitor::monitorGraph),
-			this,
-			0,
-			&graphMonitorThreadID_);
- 
-	if ( graphMonitorThread_ == NULL )
+	if ( vc_create_thread(&graphMonitorThread_,
+				&GraphMonitor::monitorGraph,
+				this, &graphMonitorThreadID_) )
 	{
 		log_error("GraphMonitor: failed spinning GraphMonitor thread (%d)\n",
 				GetLastError());
@@ -99,7 +93,7 @@ GraphMonitor::~GraphMonitor()
 	}
 
 	// wait for thread to shutdown
-	DWORD rc = WaitForSingleObject(graphMonitorThread_, INFINITE);
+	DWORD rc = WaitForSingleObject((HANDLE)graphMonitorThread_, INFINITE);
 
 	if ( rc == WAIT_FAILED )
 	{
@@ -110,11 +104,11 @@ GraphMonitor::~GraphMonitor()
 	log_info("graph monitor thread destroyed\n");
 }
 
-DWORD WINAPI 
-GraphMonitor::monitorGraph(LPVOID lpParam)
+unsigned int
+GraphMonitor::monitorGraph(void * param)
 {
 	// extract instance
-	GraphMonitor * pGraphMon = (GraphMonitor *)lpParam;
+	GraphMonitor * pGraphMon = (GraphMonitor *)param;
 
 	// signal that thread is ready
 	if ( !SetEvent(pGraphMon->initDoneEvent_) )

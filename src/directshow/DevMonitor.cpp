@@ -39,7 +39,7 @@ DevMonitor::DevMonitor()
 	  szWindowClass_(0),
 	  sapiCtx_(0)
 {
-	InitializeCriticalSection(&registrationMutex_);
+	vc_mutex_init(&registrationMutex_);
 
 	// create an event used to signal that the thread has been created
 	initDoneEvent_ = CreateEvent(
@@ -86,15 +86,9 @@ DevMonitor::DevMonitor()
 	}
 
 	// pass instance to thread
-	devMonitorThread_ = CreateThread(
-			NULL,
-			0,
-			(LPTHREAD_START_ROUTINE)(&DevMonitor::monitorDevices),
-			this,
-			0,
-			&devMonitorThreadID_);
-
-	if ( devMonitorThread_ == NULL )
+	if ( vc_create_thread(&devMonitorThread_,
+				&DevMonitor::monitorDevices,
+				this, &devMonitorThreadID_) )
 	{
 		log_error("DevMonitor: failed spinning DevMonitor thread (%d)\n",
 				GetLastError());
@@ -131,7 +125,7 @@ DevMonitor::~DevMonitor()
 		return;
 	}
 
-	DWORD rc = WaitForSingleObject(devMonitorThread_, INFINITE);
+	DWORD rc = WaitForSingleObject((HANDLE)devMonitorThread_, INFINITE);
 
 	if ( rc == WAIT_FAILED )
 	{
@@ -145,7 +139,7 @@ DevMonitor::~DevMonitor()
 				GetLastError());
 	}
 
-	DeleteCriticalSection(&registrationMutex_);
+	vc_mutex_destroy(&registrationMutex_);
 }
 
 LRESULT CALLBACK
@@ -181,13 +175,13 @@ DevMonitor::processWindowsMsgs(HWND hWnd,
 	return 0;
 }
 
-DWORD WINAPI
-DevMonitor::monitorDevices(LPVOID lpParam)
+unsigned int
+DevMonitor::monitorDevices(void * param)
 {
 	//FIXME: move window creation to constructor
 
 	// extract instance
-	DevMonitor * pDevMon = (DevMonitor *)lpParam;
+	DevMonitor * pDevMon = (DevMonitor *)param;
 
 	// Create a window, so main thread can communicate with us
 	pDevMon->windowHandle_ = CreateWindow(
@@ -285,7 +279,7 @@ DevMonitor::monitorDevices(LPVOID lpParam)
 			}
 			log_info("[[ Device event: %s ]]\n", str.c_str());
 
-			EnterCriticalSection(&pDevMon->registrationMutex_);
+			vc_mutex_lock(&pDevMon->registrationMutex_);
 
 			if ( sapiCtx &&
 					sapiCtx->notify_callback )
@@ -302,7 +296,7 @@ DevMonitor::monitorDevices(LPVOID lpParam)
 				log_info("[[ no user-defined handler registered ]]\n");
 			}
 
-			LeaveCriticalSection(&pDevMon->registrationMutex_);
+			vc_mutex_unlock(&pDevMon->registrationMutex_);
 
 		default:
 			str.assign("");
@@ -321,11 +315,11 @@ DevMonitor::registerCallback(void * sapiCtx)
 	if ( !sapiCtx )
 		return -1;
 
-	EnterCriticalSection(&registrationMutex_);
+	vc_mutex_lock(&registrationMutex_);
 
 	sapiCtx_ = sapiCtx;
 
-	LeaveCriticalSection(&registrationMutex_);
+	vc_mutex_unlock(&registrationMutex_);
 
 	return 0;
 }

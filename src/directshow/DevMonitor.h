@@ -36,11 +36,8 @@ public:
 	int registerCallback(void *);
 
 private:
-	static LRESULT __stdcall
-	processWindowsMsgs(HWND, UINT, WPARAM, LPARAM);
-
-	static DWORD WINAPI
-	monitorDevices(LPVOID lpParam);
+	static LRESULT __stdcall processWindowsMsgs(HWND, UINT, WPARAM, LPARAM);
+	static unsigned int STDCALL monitorDevices(void * lpParam);
 
 private:
 	HANDLE initDoneEvent_;
@@ -48,14 +45,14 @@ private:
 	threadStatusEnum threadStatus_;
 
 	HWND windowHandle_;
-	void * devMonitorThread_;
-	DWORD devMonitorThreadID_;
+	vc_thread devMonitorThread_;
+	unsigned int devMonitorThreadID_;
 	TCHAR * szTitle_;
 	TCHAR * szWindowClass_;
 
 	void * sapiCtx_;
 
-	CRITICAL_SECTION  registrationMutex_;
+	vc_mutex registrationMutex_;
 };
 
 #endif
