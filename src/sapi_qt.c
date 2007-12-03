@@ -23,7 +23,6 @@
  *
  */
 
-#include <pthread.h>
 #include <stdlib.h>
 #include <strings.h>
 
@@ -40,8 +39,9 @@ static const char * description = "Apple QuickTime";
 
 struct sapi_qt_context
 {
-	pthread_mutex_t mutex;
-	pthread_t notify_thread;
+	vc_mutex mutex;
+	vc_thread notify_thread;
+	unsigned int notify_thread_id;
 	int notifying;
 
 	struct sg_manager mgr;
@@ -52,7 +52,8 @@ struct sapi_qt_src_context
 	struct sg_source * src;
 
 	int capturing;
-	pthread_t capture_thread;
+	vc_thread capture_thread;
+	unsigned int capture_thread_id;
 
 	TimeValue last_time;
 	long frame_count;
@@ -61,20 +62,20 @@ struct sapi_qt_src_context
 };
 
 static int
-mutex_lock(pthread_mutex_t * mutex)
+mutex_lock(vc_mutex * mutex)
 {
-	int err = pthread_mutex_lock(mutex);
+	int err = vc_mutex_lock(mutex);
 	if ( err )
-		log_error("failed pthread_mutex_lock() %d\n", err);
+		log_error("failed vc_mutex_lock() %d\n", err);
 	return err;
 }
 
 static int
-mutex_unlock(pthread_mutex_t * mutex)
+mutex_unlock(vc_mutex * mutex)
 {
-	int err = pthread_mutex_unlock(mutex);
+	int err = vc_mutex_unlock(mutex);
 	if ( err )
-		log_error("failed pthread_mutex_unlock() %d\n", err);
+		log_error("failed vc_mutex_unlock() %d\n", err);
 	return err;
 }
 
@@ -372,7 +373,7 @@ capture_poll_timespec(double fps)
 	return ts;
 }
 
-static void *
+static unsigned int
 capture_thread_proc(void * data)
 {
 	struct sapi_src_context * src_ctx =
@@ -392,22 +393,32 @@ capture_thread_proc(void * data)
 
 	if ( map_fourcc_to_ostype(src_ctx->fmt_native.fourcc, &pixel_format) )
 	{
-		log_error("invalid pixel format '%s'\n",
+		log_error("invalid pixel format '%s' (0x%0x)\n",
 				vidcap_fourcc_string_get(
-					src_ctx->fmt_native.fourcc));
-		return (void *)-1;
+					src_ctx->fmt_native.fourcc),
+				src_ctx->fmt_native.fourcc);
+
+		ret = -2;
+		sapi_src_capture_notify(src_ctx, 0, 0, 0, ret);
+		return ret;
 	}
 
 	if ( sg_source_format_set(qt_src_ctx->src,
 				src_ctx->fmt_native.width,
 				src_ctx->fmt_native.height,
 				fps, pixel_format) )
-		return (void *)-1;
+	{
+		ret = -3;
+		sapi_src_capture_notify(src_ctx, 0, 0, 0, ret);
+		return ret;
+	}
 
 	if ( qt_src_ctx->decomp_session )
 	{
 		log_error("decomp session already setup\n");
-		return (void *)-1;
+		ret = -4;
+		sapi_src_capture_notify(src_ctx, 0, 0, 0, ret);
+		return ret;
 	}
 
 	qt_src_ctx->last_time = 0;
@@ -415,10 +426,18 @@ capture_thread_proc(void * data)
 
 	if ( sg_source_capture_start(qt_src_ctx->src, source_capture_callback,
 				(long)src_ctx) )
-		return (void *)-1;
+	{
+		ret = -5;
+		sapi_src_capture_notify(src_ctx, 0, 0, 0, ret);
+		return ret;
+	}
 
 	if ( source_decomp_session_setup(src_ctx) )
-		return (void *)-1;
+	{
+		ret = -6;
+		sapi_src_capture_notify(src_ctx, 0, 0, 0, ret);
+		return ret;
+	}
 
 	while ( qt_src_ctx->capturing )
 	{
@@ -426,8 +445,8 @@ capture_thread_proc(void * data)
 
 		if ( sg_source_capture_poll(qt_src_ctx->src) )
 		{
-			sapi_src_capture_notify(src_ctx, 0, 0, 0, -1);
-			ret = -1;
+			ret = -7;
+			sapi_src_capture_notify(src_ctx, 0, 0, 0, ret);
 			goto bail;
 		}
 
@@ -436,8 +455,9 @@ capture_thread_proc(void * data)
 			if ( errno != -EINTR )
 			{
 				log_error("failed nanosleep() %d\n", errno);
-				ret = -1;
-				goto bail;
+			ret = -8;
+			sapi_src_capture_notify(src_ctx, 0, 0, 0, ret);
+			goto bail;
 			}
 		}
 	}
@@ -445,12 +465,12 @@ capture_thread_proc(void * data)
 bail:
 
 	if ( source_decomp_session_takedown(src_ctx) )
-		ret = -1;
+		ret -= 100;
 
 	if ( sg_source_capture_stop(qt_src_ctx->src) )
-		ret = -1;
+		ret -= -1000;
 
-	return (void *)ret;
+	return ret;
 }
 
 static int
@@ -462,10 +482,11 @@ source_capture_start(struct sapi_src_context * src_ctx)
 
 	qt_src_ctx->capturing = 1;
 
-	if ( (ret = pthread_create(&qt_src_ctx->capture_thread, 0,
-					capture_thread_proc, src_ctx)) )
+	if ( (ret = vc_create_thread(&qt_src_ctx->capture_thread,
+			capture_thread_proc,
+			src_ctx, &qt_src_ctx->capture_thread_id)) )
 	{
-		log_error("failed pthread_create() for capture thread %d\n",
+		log_error("failed vc_thread_create() for capture thread %d\n",
 				ret);
 		return -1;
 	}
@@ -480,19 +501,14 @@ source_capture_stop(struct sapi_src_context * src_ctx)
 		(struct sapi_qt_src_context *)src_ctx->priv;
 
 	int ret;
-	int thread_ret;
 
 	qt_src_ctx->capturing = 0;
 
-	if ( (ret = pthread_join(qt_src_ctx->capture_thread,
-					(void *)&thread_ret)) )
+	if ( (ret = vc_thread_join(&qt_src_ctx->capture_thread)) )
 	{
-		log_error("failed pthread_join() %d\n", ret);
+		log_error("failed vc_thread_join() %d\n", ret);
 		return -1;
 	}
-
-	if ( thread_ret )
-		log_warn("capture_thread_proc returned %d\n", thread_ret);
 
 	return 0;
 }
@@ -674,7 +690,7 @@ bail:
 	return -1;
 }
 
-static void *
+static unsigned int
 notify_thread_proc(void * data)
 {
 	struct sapi_context * sapi_ctx = (struct sapi_context *)data;
@@ -690,18 +706,18 @@ notify_thread_proc(void * data)
 		int source_count;
 
 		if ( mutex_lock(&qt_ctx->mutex) )
-			return (void *)-1;
+			return -1;
 
 		if ( sg_manager_update(&qt_ctx->mgr) )
 		{
 			mutex_unlock(&qt_ctx->mutex);
-			return (void *)-1;
+			return -1;
 		}
 
 		source_count = sg_manager_source_count(&qt_ctx->mgr);
 
 		if ( mutex_unlock(&qt_ctx->mutex) )
-			return (void *)-1;
+			return -1;
 
 		if ( source_count != last_source_count &&
 				sapi_ctx->notify_callback )
@@ -716,7 +732,7 @@ notify_thread_proc(void * data)
 			if ( errno != -EINTR )
 			{
 				log_error("failed nanosleep() %d\n", errno);
-				return (void *)-1;
+				return -1;
 			}
 		}
 	}
@@ -729,19 +745,15 @@ notify_thread_stop(struct sapi_context * sapi_ctx)
 {
 	struct sapi_qt_context * qt_ctx =
 		(struct sapi_qt_context *)sapi_ctx->priv;
-	int thread_ret;
 	int ret;
 
 	qt_ctx->notifying = 0;
 
-	if ( (ret = pthread_join(qt_ctx->notify_thread, (void *)&thread_ret)) )
+	if ( (ret = vc_thread_join(&qt_ctx->notify_thread)) )
 	{
-		log_error("failed pthread_join() notify thread %d\n", ret);
+		log_error("failed vc_thread_join() notify thread %d\n", ret);
 		return -1;
 	}
-
-	if ( thread_ret )
-		log_warn("notify_thread_proc returned %d\n", thread_ret);
 
 	return 0;
 }
@@ -758,10 +770,10 @@ monitor_sources(struct sapi_context * sapi_ctx)
 
 	qt_ctx->notifying = 1;
 
-	if ( (ret = pthread_create(&qt_ctx->notify_thread, 0,
-					notify_thread_proc, sapi_ctx)) )
+	if ( (ret = vc_create_thread(&qt_ctx->notify_thread, notify_thread_proc,
+			sapi_ctx, &qt_ctx->notify_thread_id)) )
 	{
-		log_error("failed pthread_create() for notify thread %d\n",
+		log_error("failed vc_thread_create() for notify thread %d\n",
 				ret);
 		return -1;
 	}
@@ -791,7 +803,7 @@ sapi_qt_destroy(struct sapi_context * sapi_ctx )
 
 	ExitMovies();
 
-	pthread_mutex_destroy(&qt_ctx->mutex);
+	vc_mutex_destroy(&qt_ctx->mutex);
 
 	free(sapi_ctx->user_src_list.list);
 	free(qt_ctx);
@@ -810,9 +822,9 @@ sapi_qt_initialize(struct sapi_context * sapi_ctx)
 		return -1;
 	}
 
-	if ( pthread_mutex_init(&qt_ctx->mutex, 0) )
+	if ( vc_mutex_init(&qt_ctx->mutex) )
 	{
-		log_error("failed pthread_mutex_init()\n");
+		log_error("failed vc_mutex_init()\n");
 		return -1;
 	}
 

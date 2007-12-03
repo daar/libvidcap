@@ -26,7 +26,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/videodev.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -51,8 +50,9 @@ enum
 
 struct sapi_v4l_context
 {
-	pthread_mutex_t mutex;
-	pthread_t notify_thread;
+	vc_mutex mutex;
+	vc_thread notify_thread;
+	unsigned int notify_thread_id;
 	int notifying;
 	struct sapi_src_list acquired_src_list;
 };
@@ -71,7 +71,8 @@ struct sapi_v4l_src_context
 	struct video_mbuf mbuf;
 
 	int capturing;
-	pthread_t capture_thread;
+	vc_thread capture_thread;
+	unsigned int capture_thread_id;
 };
 
 static int
@@ -533,7 +534,7 @@ capture_kickoff(struct sapi_src_context * src_ctx,
 	return 0;
 }
 
-static void *
+static unsigned int
 capture_thread_proc(void * data)
 {
 	struct sapi_src_context * src_ctx =
@@ -554,7 +555,7 @@ capture_thread_proc(void * data)
 	if ( fb_base == (void *)-1 )
 	{
 		log_error("failed mmap() %d\n", errno);
-		return (void *)-1;
+		return -1;
 	}
 
 	if ( capture_kickoff(src_ctx, started_frame_count) )
@@ -575,8 +576,8 @@ capture_thread_proc(void * data)
 			goto bail;
 		}
 
-		sapi_src_capture_notify(src_ctx, fb_base +
-				v4l_src_ctx->mbuf.offsets[capture_frame],
+		sapi_src_capture_notify(src_ctx, (char *)(fb_base +
+				v4l_src_ctx->mbuf.offsets[capture_frame]),
 				capture_size,
 				0,
 				0);
@@ -603,7 +604,7 @@ capture_thread_proc(void * data)
 	if ( munmap((void *)fb_base, v4l_src_ctx->mbuf.size) == -1 )
 	{
 		log_error("failed munmap() %d\n", errno);
-		return (void *)-1;
+		return -1;
 	}
 
 	return 0;
@@ -612,7 +613,7 @@ bail:
 	if ( munmap((void *)fb_base, v4l_src_ctx->mbuf.size) == -1 )
 		log_warn("failed munmap() %d\n", errno);
 
-	return (void *)-1;
+	return -1;
 }
 
 static int
@@ -624,10 +625,11 @@ source_capture_start(struct sapi_src_context * src_ctx)
 
 	v4l_src_ctx->capturing = 1;
 
-	if ( (ret = pthread_create(&v4l_src_ctx->capture_thread, 0,
-					capture_thread_proc, src_ctx)) )
+	if ( (ret = vc_create_thread(&v4l_src_ctx->capture_thread,
+				capture_thread_proc, src_ctx,
+				&v4l_src_ctx->capture_thread_id)) )
 	{
-		log_error("failed pthread_create() for capture thread %d\n",
+		log_error("failed vc_create_thread() for capture thread %d\n",
 				ret);
 		return -1;
 	}
@@ -641,19 +643,14 @@ source_capture_stop(struct sapi_src_context * src_ctx)
 	struct sapi_v4l_src_context * v4l_src_ctx =
 		(struct sapi_v4l_src_context *)src_ctx->priv;
 	int ret;
-	int thread_ret;
 
 	v4l_src_ctx->capturing = 0;
 
-	if ( (ret = pthread_join(v4l_src_ctx->capture_thread,
-					(void *)&thread_ret)) )
+	if ( (ret = vc_thread_join(&v4l_src_ctx->capture_thread)) )
 	{
-		log_error("failed pthread_join() %d\n", ret);
+		log_error("failed vc_thread_join() %d\n", ret);
 		return -1;
 	}
-
-	if ( thread_ret )
-		log_warn("capture_thread_proc returned %d\n", thread_ret);
 
 	return 0;
 }
@@ -928,7 +925,7 @@ bail:
 	return -1;
 }
 
-static void *
+static unsigned int
 notify_thread_proc(void * data)
 {
 	struct sapi_context * sapi_ctx = (struct sapi_context *)data;
@@ -939,18 +936,18 @@ notify_thread_proc(void * data)
 
 	while ( v4l_ctx->notifying )
 	{
-		pthread_mutex_lock(&v4l_ctx->mutex);
+		vc_mutex_lock(&v4l_ctx->mutex);
 
 		/* TODO: look for devices */
 
-		pthread_mutex_unlock(&v4l_ctx->mutex);
+		vc_mutex_unlock(&v4l_ctx->mutex);
 
 		if ( nanosleep(&wait_ts, 0) )
 		{
 			if ( errno != -EINTR )
 			{
 				log_error("failed nanosleep() %d\n", errno);
-				return (void *)-1;
+				return -1;
 			}
 		}
 	}
@@ -963,19 +960,15 @@ notify_thread_stop(struct sapi_context * sapi_ctx)
 {
 	struct sapi_v4l_context * v4l_ctx =
 		(struct sapi_v4l_context *)sapi_ctx->priv;
-	int thread_ret;
 	int ret;
 
 	v4l_ctx->notifying = 0;
 
-	if ( (ret = pthread_join(v4l_ctx->notify_thread, (void *)&thread_ret)) )
+	if ( (ret = vc_thread_join(&v4l_ctx->notify_thread)) )
 	{
-		log_error("failed pthread_join() notify thread %d\n", ret);
+		log_error("failed vc_thread_join() notify thread %d\n", ret);
 		return -1;
 	}
-
-	if ( thread_ret )
-		log_warn("notify_thread_proc returned %d\n", thread_ret);
 
 	return 0;
 }
@@ -992,10 +985,11 @@ monitor_sources(struct sapi_context * sapi_ctx)
 
 	v4l_ctx->notifying = 1;
 
-	if ( (ret = pthread_create(&v4l_ctx->notify_thread, 0,
-					notify_thread_proc, sapi_ctx)) )
+	if ( (ret = vc_create_thread(&v4l_ctx->notify_thread,
+					notify_thread_proc, sapi_ctx,
+					&v4l_ctx->notify_thread_id)) )
 	{
-		log_error("failed pthread_create() for notify thread %d\n",
+		log_error("failed vc_create_thread() for notify thread %d\n",
 				ret);
 		return -1;
 	}
@@ -1009,7 +1003,7 @@ sapi_v4l_destroy(struct sapi_context * sapi_ctx)
 	struct sapi_v4l_context * v4l_ctx =
 		(struct sapi_v4l_context *)sapi_ctx->priv;
 
-	pthread_mutex_destroy(&v4l_ctx->mutex);
+	vc_mutex_destroy(&v4l_ctx->mutex);
 
 	free(sapi_ctx->user_src_list.list);
 	free(v4l_ctx);
@@ -1028,9 +1022,9 @@ sapi_v4l_initialize(struct sapi_context * sapi_ctx)
 		return -1;
 	}
 
-	if ( pthread_mutex_init(&v4l_ctx->mutex, 0) )
+	if ( vc_mutex_init(&v4l_ctx->mutex) )
 	{
-		log_error("failed pthread_mutex_init()\n");
+		log_error("failed vc_mutex_init()\n");
 		return -1;
 	}
 
