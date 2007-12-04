@@ -124,6 +124,7 @@ double_buffer_insert(struct double_buffer * db_buff, void * new_object)
 	{
 		/* failed to obtain lock */
 		/* drop incoming object  */
+		log_info("vidcap callback failed to write a frame\n");
 		db_buff->free_object(new_object);
 		return;
 	}
@@ -148,45 +149,58 @@ double_buffer_insert(struct double_buffer * db_buff, void * new_object)
 void *
 double_buffer_read(struct double_buffer * db_buff)
 {
-	int copy_index = 1;
+	int copy_index = db_buff->read_count % 2;
 	void * buff;
 
 	if ( db_buff->write_count < 1 )
 		return 0;
 
-	/* NOTE: Try the newest buffer first
-	 *       IF that lock fails THEN try other
-	 */
-	if ( db_buff->count[0] > db_buff->count[1] )
-		copy_index = 0;
+	/* try the next buffer */
+	if ( db_buff->count[copy_index] < db_buff->read_count )
+	{
+		/* Next buffer isn't ready. Use the previous buffer */
+		copy_index = 1 - copy_index;
+	}
+
 
 	if ( vc_mutex_trylock(&db_buff->locks[copy_index] ) )
 	{
-		/* failed to obtain lock       */
-		/* try the other (older) slot? */
+		/* Failed to obtain lock.
+		 * Try the other slot?
+		 */
 		if ( db_buff->write_count < 2 )
 			return 0;
 
 		copy_index = 1 - copy_index;
 
-		/* Failed to obtain other lock? */
-		/* This should be pretty rare   */
-		if ( vc_mutex_trylock(&db_buff->locks[copy_index] ) )
+		if ( db_buff->count[copy_index] < db_buff->read_count )
+		{
+			/* Too old. Don't read this buffer */
+			vc_mutex_unlock(&db_buff->locks[copy_index]);
 			return 0;
+		}
+
+		/* Try other lock. Failure should be rare */
+		if ( vc_mutex_trylock(&db_buff->locks[copy_index] ) )
+		{
+			log_info("Capture timer thread failed to obtain 2nd lock\n");
+			return 0;
+		}
 	}
 
-	/* Is this buffer older than the last-read?
-	 * TODO: could this happen?
-	 */
-	if ( db_buff->count[copy_index] < db_buff->read_count )
+	/* Is this buffer older than the last-read? */
+	if ( db_buff->count[copy_index] < (db_buff->read_count - 1))
 	{
+		/* vidcap buffer is too old. Don't read it.
+		 * This needs to be rare.
+		 */
 		vc_mutex_unlock(&db_buff->locks[copy_index]);
 		return 0;
 	}
 
 	buff = db_buff->copy_object(db_buff->objects[copy_index]);
 
-	db_buff->read_count = db_buff->count[copy_index];
+	db_buff->read_count = db_buff->count[copy_index] + 1;
 
 	vc_mutex_unlock(&db_buff->locks[copy_index]);
 
