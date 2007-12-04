@@ -50,6 +50,10 @@
 #include <process.h>
 #endif
 
+#if defined(__MINGW32__)
+#include <stdint.h>
+#endif
+
 #define STDCALL	__stdcall
 typedef CRITICAL_SECTION vc_mutex;
 typedef uintptr_t vc_thread;
