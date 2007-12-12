@@ -455,9 +455,9 @@ capture_thread_proc(void * data)
 			if ( errno != -EINTR )
 			{
 				log_error("failed nanosleep() %d\n", errno);
-			ret = -8;
-			sapi_src_capture_notify(src_ctx, 0, 0, 0, ret);
-			goto bail;
+				ret = -8;
+				sapi_src_capture_notify(src_ctx, 0, 0, 0, ret);
+				goto bail;
 			}
 		}
 	}
