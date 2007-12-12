@@ -26,7 +26,6 @@
 #define _DIRECTSHOWSOURCE_H_
 
 #include <stdexcept>
-#include <atlbase.h>
 #include <qedit.h>
 #include <DShow.h>
 
