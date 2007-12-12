@@ -50,7 +50,7 @@
 #include <process.h>
 #endif
 
-#if defined(__MINGW32__)
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
 
