@@ -39,25 +39,23 @@ struct double_buffer
 
 	int count[_DOUBLE_MEANS_TWO_];
 
-	void * (*copy_object)(void *);
-	void (*free_object)(void *);
+	void (*copy_object)(void *, const void *);
 
 	/* TODO: remove */
 	int num_insert_too_far_failures;
 };
 
 struct double_buffer *
-double_buffer_create(  void (*free_obj_func)(void *),
-		void * (*copy_object)(void *));
+double_buffer_create(void (*copy_object)(void *, const void *), void *, void *);
 
 void
 double_buffer_destroy(struct double_buffer * db_buff);
 
 void
-double_buffer_insert(struct double_buffer * db_buff, void * object);
+double_buffer_write(struct double_buffer * db_buff, const void * object);
 
-void *
-double_buffer_read(struct double_buffer * db_buff);
+int
+double_buffer_read(struct double_buffer * db_buff, void * object);
 
 int
 double_buffer_count(struct double_buffer * db_buff);

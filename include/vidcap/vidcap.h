@@ -76,6 +76,8 @@ struct vidcap_capture_info
 	const char * video_data;
 	int video_data_size;
 	int error_status;
+	long capture_time_sec;
+	long capture_time_usec;
 };
 
 typedef int (*vidcap_src_capture_callback) (vidcap_src *,

@@ -338,7 +338,7 @@ vidcap_src_acquire(vidcap_sapi * sapi,
 			goto bail;
 		}
 
-		log_info("using a capture timer thread for this source\n");
+		log_debug("using a capture timer thread for this source\n");
 	}
 
 	if ( sapi_ctx->acquire_source(sapi_ctx, src_ctx, src_info) )
@@ -528,7 +528,7 @@ vidcap_format_bind(vidcap_src * src,
 			return -1;
 		}
 
-		log_info("format bind requires conversion: %s\n",
+		log_debug("format bind requires conversion: %s\n",
 				conv_conversion_name_get(src_ctx->fmt_conv_func));
 	}
 
@@ -546,40 +546,20 @@ vidcap_format_info_get(vidcap_src * src,
 	return 0;
 }
 
-void
-free_frame_info(void * fr)
+static __inline void
+copy_frame_info(void * fr2, const void *fr1)
 {
-	struct frame_info *frame = (struct frame_info *)fr;
+	const struct frame_info *frame_orig = (struct frame_info *)fr1;
+	struct frame_info *frame_dup = (struct frame_info *)fr2;
 
-	free(frame->video_data);
-	free(frame);
-}
+	frame_dup->capture_time    = frame_orig->capture_time;
+	frame_dup->error_status    = frame_orig->error_status;
+	frame_dup->stride          = frame_orig->stride;
+	frame_dup->video_data_size = frame_orig->video_data_size;
 
-void *
-copy_frame_info(void * fr)
-{
-	struct frame_info *frame = (struct frame_info *)fr;
-
-	struct frame_info *dup_frame = malloc(sizeof(*dup_frame));
-
-	if ( !dup_frame )
-		return 0;
-
-	dup_frame->stride = frame->stride;
-	dup_frame->error_status = frame->error_status;
-	dup_frame->video_data_size = frame->video_data_size;
-	dup_frame->video_data = malloc(frame->video_data_size);
-	if ( !dup_frame->video_data )
-	{
-		free(dup_frame);
-		return 0;
-	}
-
-	memcpy(dup_frame->video_data,
-			frame->video_data,
-			frame->video_data_size);
-
-	return dup_frame;
+	memcpy(frame_dup->video_data,
+			frame_orig->video_data,
+			frame_orig->video_data_size);
 }
 
 int
@@ -587,9 +567,17 @@ vidcap_src_capture_start(vidcap_src * src,
 		vidcap_src_capture_callback callback,
 		void * user_data)
 {
-	int ret;
+	int ret = 0;
 	struct sapi_src_context * src_ctx = (struct sapi_src_context *)src;
 	const int sliding_window_seconds = 4;
+
+	/* Assume worst-case video data with stride is 50%
+	 * bigger than without a stride.
+	 */
+	/* FIXME: Defer measurement of stride-full 
+	 *        buffer until first capture callback
+	 */
+	const int stride_full_buf_size = src_ctx->stride_free_buf_size * 3 / 2;
 
 	if ( user_data == VIDCAP_INVALID_USER_DATA )
 		return -3;
@@ -597,44 +585,90 @@ vidcap_src_capture_start(vidcap_src * src,
 	if ( src_ctx->src_state != src_bound )
 		return -4;
 
-	src_ctx->frame_time_next.tv_sec = 0;
-	src_ctx->frame_time_next.tv_usec = 0;
-	src_ctx->frame_times = sliding_window_create(sliding_window_seconds *
-			src_ctx->fmt_nominal.fps_numerator / 
-			src_ctx->fmt_nominal.fps_denominator,
-			sizeof(struct timeval));
+	memset(src_ctx->buffered_frames, 0, sizeof(src_ctx->buffered_frames));
+	src_ctx->timer_thread_frame.video_data = 0;
+	src_ctx->frame_times = 0;
+	src_ctx->double_buff = 0;
 
-	if ( !src_ctx->frame_times )
-		return -2;
-
-	src_ctx->double_buff = double_buffer_create(&free_frame_info,
-			&copy_frame_info);
-
-	if ( !src_ctx->double_buff )
+	if ( src_ctx->use_timer_thread )
 	{
-		sliding_window_destroy(src_ctx->frame_times);
-		src_ctx->frame_times = 0;
-		return -5;
+		/* allocate space for double-buffering video buffers */
+		src_ctx->buffered_frames[0].video_data =
+				malloc(2 * stride_full_buf_size);
+		if ( !src_ctx->buffered_frames[0].video_data )
+		{
+			log_oom(__FILE__, __LINE__);
+			ret = -6;
+			goto capture_start_bail;
+		}
+
+		src_ctx->buffered_frames[1].video_data =
+				src_ctx->buffered_frames[0].video_data +
+						stride_full_buf_size;
+
+		src_ctx->timer_thread_frame.video_data =
+				malloc(stride_full_buf_size);
+		if ( !src_ctx->timer_thread_frame.video_data )
+		{
+			log_oom(__FILE__, __LINE__);
+			ret = -6;
+			goto capture_start_bail;
+		}
+
+		src_ctx->double_buff = double_buffer_create(&copy_frame_info,
+				&src_ctx->buffered_frames[0], &src_ctx->buffered_frames[1]);
+		if ( !src_ctx->double_buff )
+		{
+			ret = -5;
+			goto capture_start_bail;
+		}
+	}
+	else
+	{
+		src_ctx->frame_time_next.tv_sec = 0;
+		src_ctx->frame_time_next.tv_usec = 0;
+		src_ctx->frame_times = sliding_window_create(sliding_window_seconds *
+				src_ctx->fmt_nominal.fps_numerator / 
+				src_ctx->fmt_nominal.fps_denominator,
+				sizeof(struct timeval));
+
+		if ( !src_ctx->frame_times )
+			return -2;
 	}
 
 	src_ctx->capture_callback = callback;
 	src_ctx->capture_data = user_data;
 
 	if ( (ret = src_ctx->start_capture(src_ctx)) )
-	{
-		src_ctx->capture_callback = 0;
-		src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
-
-		double_buffer_destroy(src_ctx->double_buff);
-		src_ctx->double_buff = 0;
-
-		sliding_window_destroy(src_ctx->frame_times);
-		src_ctx->frame_times = 0;
-		return ret;
-	}
+		goto capture_start_bail;
 
 	src_ctx->src_state = src_capturing;
 	return 0;
+
+capture_start_bail:
+
+	src_ctx->capture_callback = 0;
+	src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
+
+	if ( src_ctx->double_buff )
+		double_buffer_destroy(src_ctx->double_buff);
+
+	if ( src_ctx->buffered_frames[0].video_data )
+		free(src_ctx->buffered_frames[0].video_data);
+
+	if ( src_ctx->buffered_frames[1].video_data )
+		free(src_ctx->buffered_frames[1].video_data);
+
+	if ( src_ctx->timer_thread_frame.video_data )
+		free(src_ctx->timer_thread_frame.video_data);
+
+	if ( src_ctx->frame_times )
+		sliding_window_destroy(src_ctx->frame_times);
+
+	src_ctx->double_buff = 0;
+	src_ctx->frame_times = 0;
+
+	return ret;
 }
 
 int
@@ -657,10 +691,21 @@ vidcap_src_capture_stop(vidcap_src * src)
 		sapi_src_timer_thread_idled(src_ctx);
 	}
 
-	double_buffer_destroy(src_ctx->double_buff);
+	if ( src_ctx->double_buff )
+		double_buffer_destroy(src_ctx->double_buff);
 	src_ctx->double_buff = 0;
 
-	sliding_window_destroy(src_ctx->frame_times);
+	if ( src_ctx->buffered_frames[0].video_data )
+		free(src_ctx->buffered_frames[0].video_data);
+
+	if ( src_ctx->buffered_frames[1].video_data )
+		free(src_ctx->buffered_frames[1].video_data);
+
+	if ( src_ctx->timer_thread_frame.video_data )
+		free(src_ctx->timer_thread_frame.video_data);
+
+	if ( src_ctx->frame_times )
+		sliding_window_destroy(src_ctx->frame_times);
 	src_ctx->frame_times = 0;
 
 	src_ctx->capture_callback = 0;

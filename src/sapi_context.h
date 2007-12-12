@@ -40,6 +40,7 @@ struct frame_info
 	int video_data_size;
 	int error_status;
 	int stride;
+	struct timeval capture_time;
 };
 
 struct sapi_src_context
@@ -79,8 +80,11 @@ struct sapi_src_context
 	vidcap_src_capture_callback capture_callback;
 	void * capture_data;
 
+	struct frame_info buffered_frames[2];
+	struct frame_info timer_thread_frame;
+
 	int use_timer_thread;
-	struct frame_info * no_timer_thread_frame;
+	struct frame_info callback_frame;
 	vc_thread capture_timer_thread;
 	unsigned int capture_timer_thread_id;
 	int capture_timer_thread_started;

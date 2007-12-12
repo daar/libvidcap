@@ -41,16 +41,15 @@
  * to make room for an incoming object
  */
 
-/* NOTE: This function is passed function pointers to call when
- *       necessary to free or copy an object
+/* NOTE: This function is passed a function pointer to
+ *       call when necessary to copy an object
  */
 struct double_buffer *
-double_buffer_create( void (*free_me)(void *), void * (*copy_me)(void *) )
+double_buffer_create( void (*copy_func)(void *, const void *), void *object1, void *object2 )
 {
-
 	struct double_buffer * db_buff;
 		
-	if ( !free_me || !copy_me )
+	if ( !copy_func )
 		return 0;
 
 	db_buff = calloc(1, sizeof(*db_buff));
@@ -65,11 +64,10 @@ double_buffer_create( void (*free_me)(void *), void * (*copy_me)(void *) )
 	db_buff->write_count = 0;
 	db_buff->count[0] = -1;
 	db_buff->count[1] = -1;
-	db_buff->objects[0] = 0;
-	db_buff->objects[1] = 0;
+	db_buff->objects[0] = object1;
+	db_buff->objects[1] = object2;
 
-	db_buff->free_object = free_me;
-	db_buff->copy_object = copy_me;
+	db_buff->copy_object = copy_func;
 
 	vc_mutex_init(&db_buff->locks[0]);
 	vc_mutex_init(&db_buff->locks[1]);
@@ -86,33 +84,18 @@ double_buffer_destroy(struct double_buffer * db_buff)
 	vc_mutex_destroy(&db_buff->locks[1]);
 	vc_mutex_destroy(&db_buff->locks[0]);
 
-	if ( db_buff->write_count > 0 )
-			db_buff->free_object(db_buff->objects[0]);
-
-	if ( db_buff->write_count > 1 )
-		db_buff->free_object(db_buff->objects[1]);
+	log_debug("Double buffer had counter reading of %d\n",
+			db_buff->num_insert_too_far_failures);
 
 	free(db_buff);
 }
 
 void
-double_buffer_insert(struct double_buffer * db_buff, void * new_object)
+double_buffer_write(struct double_buffer * db_buff, const void * new_object)
 {
 	const int insertion_index = db_buff->write_count % 2;
 
-	/* TODO: we could eliminate a copy by having the reader free
-	 *       all buffered objects. This would require that a failed
-	 *       check below result in the object being freed. This
-	 *       would ensure that the reader sees all BUFFERED objects.
-	 *
-	 *       The reader would then need to take care to free objects
-	 *       as they become outdated.
-	 *
-	 *       The tradeoff is the occasional dropped object when
-	 *       the writer gets ahead a little. The counter can help
-	 *       to evaluate the cost of this tradeoff
-	 */
-	/* don't get far ahead of the reader*/
+	/* don't get far ahead of the reader */
 	if ( db_buff->write_count > ( db_buff->read_count + 2 ) )
 	{
 		db_buff->num_insert_too_far_failures++;
@@ -124,17 +107,12 @@ double_buffer_insert(struct double_buffer * db_buff, void * new_object)
 	{
 		/* failed to obtain lock */
 		/* drop incoming object  */
-		log_info("vidcap callback failed to write a frame\n");
-		db_buff->free_object(new_object);
+		log_info("callback is skipping a frame\n");
 		return;
 	}
 
-	/* free the slot object if something is already there */
-	if ( db_buff->write_count > 1 )
-		db_buff->free_object(db_buff->objects[insertion_index]);
-
-	/* insert object */
-	db_buff->objects[insertion_index] = new_object;
+	/* copy object */
+	db_buff->copy_object(db_buff->objects[insertion_index], new_object);
 
 	/* stamp the buffer with the write count */
 	db_buff->count[insertion_index] = db_buff->write_count;
@@ -146,14 +124,13 @@ double_buffer_insert(struct double_buffer * db_buff, void * new_object)
 	vc_mutex_unlock(&db_buff->locks[insertion_index]);
 }
 
-void *
-double_buffer_read(struct double_buffer * db_buff)
+int
+double_buffer_read(struct double_buffer * db_buff, void *dest_buffer)
 {
 	int copy_index = db_buff->read_count % 2;
-	void * buff;
 
 	if ( db_buff->write_count < 1 )
-		return 0;
+		return -1;
 
 	/* try the next buffer */
 	if ( db_buff->count[copy_index] < db_buff->read_count )
@@ -162,14 +139,13 @@ double_buffer_read(struct double_buffer * db_buff)
 		copy_index = 1 - copy_index;
 	}
 
-
 	if ( vc_mutex_trylock(&db_buff->locks[copy_index] ) )
 	{
-		/* Failed to obtain lock.
-		 * Try the other slot?
+		/* Failed to obtain buffer's lock.
+		 * Try the other buffer?
 		 */
 		if ( db_buff->write_count < 2 )
-			return 0;
+			return -1;
 
 		copy_index = 1 - copy_index;
 
@@ -177,14 +153,15 @@ double_buffer_read(struct double_buffer * db_buff)
 		{
 			/* Too old. Don't read this buffer */
 			vc_mutex_unlock(&db_buff->locks[copy_index]);
-			return 0;
+			log_info("Capture timer thread failed to obtain lock\n");
+			return -1;
 		}
 
 		/* Try other lock. Failure should be rare */
 		if ( vc_mutex_trylock(&db_buff->locks[copy_index] ) )
 		{
 			log_info("Capture timer thread failed to obtain 2nd lock\n");
-			return 0;
+			return -1;
 		}
 	}
 
@@ -195,16 +172,17 @@ double_buffer_read(struct double_buffer * db_buff)
 		 * This needs to be rare.
 		 */
 		vc_mutex_unlock(&db_buff->locks[copy_index]);
-		return 0;
+		log_info("Capture timer thread won't read stale buffer\n");
+		return -1;
 	}
 
-	buff = db_buff->copy_object(db_buff->objects[copy_index]);
+	db_buff->copy_object(dest_buffer, db_buff->objects[copy_index]);
 
 	db_buff->read_count = db_buff->count[copy_index] + 1;
 
 	vc_mutex_unlock(&db_buff->locks[copy_index]);
 
-	return buff;
+	return 0;
 }
 
 int

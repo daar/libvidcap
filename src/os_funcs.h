@@ -79,37 +79,32 @@ typedef pthread_t vc_thread;
 #include <sys/sysctl.h>
 #endif
 
-#ifndef HAVE_GETTIMEOFDAY
-static __inline int
-gettimeofday(struct timeval * tv, struct timezone * tz)
-#ifdef WIN32
+static __inline struct timeval
+vc_now(void)
 {
+	struct timeval tv;
+#ifdef HAVE_GETTIMEOFDAY
+	gettimeofday(&tv, 0);
+#elif defined(WIN32)
 	FILETIME ft;
 	LARGE_INTEGER li;
 	__int64 t;
 	static int tzflag;
 	const __int64 EPOCHFILETIME = 116444736000000000i64;
-	if ( tv )
-	{
-		GetSystemTimeAsFileTime(&ft);
-		li.LowPart  = ft.dwLowDateTime;
-		li.HighPart = ft.dwHighDateTime;
-		t  = li.QuadPart;       /* In 100-nanosecond intervals */
-		t -= EPOCHFILETIME;     /* Offset to the Epoch time */
-		t /= 10;                /* In microseconds */
-		tv->tv_sec  = (long)(t / 1000000);
-		tv->tv_usec = (long)(t % 1000000);
-	}
 
-	return 0;
-
-#else /* !defined(_WINDOWS) */
-	errno = ENOSYS;
-	return -1;
+	GetSystemTimeAsFileTime(&ft);
+	li.LowPart  = ft.dwLowDateTime;
+	li.HighPart = ft.dwHighDateTime;
+	t  = li.QuadPart;       /* In 100-nanosecond intervals */
+	t -= EPOCHFILETIME;     /* Offset to the Epoch time */
+	t /= 10;                /* In microseconds */
+	tv.tv_sec  = (long)(t / 1000000);
+	tv.tv_usec = (long)(t % 1000000);
+#else
+#error no gettimeofday or equivalent available
 #endif
+	return tv;
 }
-#endif /* !defined(HAVE_GETTIMEOFDAY) */
-
 
 static __inline int
 vc_create_thread(vc_thread *thread,
