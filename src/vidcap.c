@@ -311,7 +311,7 @@ vidcap_src_acquire(vidcap_sapi * sapi,
 	 *        allow an application to choose to forego this feature
 	 *        and the associated overhead
 	 */
-	src_ctx->use_timer_thread = 1;
+	src_ctx->use_timer_thread = 0;
 
 	if ( src_ctx->use_timer_thread )
 	{
