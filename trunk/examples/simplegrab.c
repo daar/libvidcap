@@ -210,6 +210,7 @@ static void usage(void)
 			" -q  -- decrease libvidcap verbosity\n"
 			" -e  -- do enumeration test\n"
 			" -d  -- do defaults test\n"
+			" -2  -- do double default test\n"
 			" -c  -- do capture test\n"
 			" -n  -- do notification test\n");
 }
@@ -217,15 +218,6 @@ static void usage(void)
 static int process_command_line(int argc, char * argv[])
 {
 	int i;
-
-	if ( argc == 1 )
-	{
-		opt_do_enumeration = 1;
-		opt_do_defaults = 1;
-		opt_do_double_default = 1;
-		opt_do_captures = 1;
-		opt_do_notifies = 1;
-	}
 
 	for ( i = 1; i < argc; ++i )
 	{
@@ -251,6 +243,22 @@ static int process_command_line(int argc, char * argv[])
 			log_error("unknown option '%s'\n", argv[i]);
 			return -1;
 		}
+	}
+
+	/* If none of the tests are explicitly set, then we go ahead
+	 * and do all of them.
+	 */
+	if ( !(opt_do_enumeration ||
+			opt_do_defaults ||
+			opt_do_double_default ||
+			opt_do_captures ||
+			opt_do_notifies) )
+	{
+		opt_do_enumeration = 1;
+		opt_do_defaults = 1;
+		opt_do_double_default = 1;
+		opt_do_captures = 1;
+		opt_do_notifies = 1;
 	}
 
 	return 0;
