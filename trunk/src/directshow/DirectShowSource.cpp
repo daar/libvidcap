@@ -27,7 +27,6 @@
 #include <cstdio>
 #include <cwchar>
 #include <atlbase.h>
-#include <qedit.h>
 #include <comutil.h>
 
 #include <vidcap/converters.h>
