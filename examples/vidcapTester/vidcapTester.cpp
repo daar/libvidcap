@@ -1,6 +1,7 @@
 #include <stdexcept>
 
 #include <QApplication>
+#include <QDebug>
 #include <QIcon>
 
 #include "GrabberManager.h"
@@ -31,6 +32,13 @@ static void message_handler(QtMsgType msg_type, const char * msg)
 
 	fprintf(stderr, "vidcapTester: %s: %s\n",
 			level_string.toAscii().constData(), msg);
+}
+
+static void usage()
+{
+	qDebug() << "usage: vidcapTester " <<
+		"[-f FRAMESPERSECOND] " <<
+		"[-w WIDTH] [-h HEIGHT]";
 }
 
 static void parse_args(int argc, char * argv[], int & width, int & height,
@@ -102,6 +110,7 @@ int main(int argc, char *argv[])
 	catch ( const std::runtime_error & e )
 	{
 		qCritical(e.what());
+		usage();
 		return 1;
 	}
 
