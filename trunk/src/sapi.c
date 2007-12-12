@@ -30,9 +30,6 @@
 #include "logging.h"
 #include "sapi.h"
 
-static int
-deliver_frame(struct sapi_src_context * src_ctx);
-
 static __inline int
 tv_greater_or_equal(struct timeval * t1, struct timeval * t0)
 {
@@ -73,8 +70,7 @@ enforce_framerate(struct sapi_src_context * src_ctx)
 
 	first_time = !sliding_window_count(src_ctx->frame_times);
 
-	if ( gettimeofday(&tv_now, 0) )
-		return -1;
+	tv_now = vc_now();
 
 	if ( !first_time && !tv_greater_or_equal(
 				&tv_now, &src_ctx->frame_time_next) )
@@ -202,76 +198,6 @@ acknowledge_error(struct sapi_src_context * src_ctx)
 	src_ctx->capture_error_ack = 1;
 }
 
-/* NOTE: stride-ignorant sapis should pass a stride of zero */
-int
-sapi_src_capture_notify(struct sapi_src_context * src_ctx,
-		char * video_data, int video_data_size,
-		int stride,
-		int error_status)
-{
-	/* NOTE: We may be called here by the capture thread while the
-	 * main thread is clearing capture_data and capture_callback
-	 * from within vidcap_src_capture_stop().
-	 */
-
-	/* Package the video information */
-	struct frame_info * frame = malloc(sizeof(*frame));
-	if ( !frame )
-		return -1;
-
-	/* Screen-out useless callbacks */
-	if ( video_data_size < 1 && !error_status )
-	{
-		log_info("callback with no data?\n");
-		return 0;
-	}
-
-	frame->video_data_size = video_data_size;
-	frame->error_status = error_status;
-	frame->stride = stride;
-
-	if ( src_ctx->use_timer_thread )
-	{
-		/* Copy this buffer. It might not exist long enough for
-		 * read thread (capture timer thread) to copy it
-		 */
-		frame->video_data = malloc(video_data_size);
-		if ( !frame->video_data )
-		{
-			free(frame);
-			return -1;
-		}
-
-		memcpy(frame->video_data, video_data, video_data_size);
-
-		/* buffer the frame - for processing by the timer thread */
-		double_buffer_insert(src_ctx->double_buff, frame);
-
-		/* If there's an error, wait here until it's acknowledged
-		 * by the timer thread (after having delivered it to the app).
-		 */
-		if ( error_status )
-			wait_for_error_ack(src_ctx);
-	}
-	else
-	{
-		frame->video_data = video_data;
-
-		/* process the frame now */
-		src_ctx->no_timer_thread_frame = frame;
-		deliver_frame(src_ctx);
-	}
-
-	if ( error_status )
-	{
-		src_ctx->src_state = src_bound;
-		src_ctx->capture_callback = 0;
-		src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
-	}
-
-	return 0;
-}
-
 static int
 deliver_frame(struct sapi_src_context * src_ctx)
 {
@@ -283,7 +209,7 @@ deliver_frame(struct sapi_src_context * src_ctx)
 
 	struct vidcap_capture_info cap_info;
 
-	struct frame_info * frame;
+	const struct frame_info * frame;
 	const char * video_data;
 	int video_data_size;
 	int stride;
@@ -291,21 +217,23 @@ deliver_frame(struct sapi_src_context * src_ctx)
 
 	if ( src_ctx->use_timer_thread )
 	{
-		frame = (struct frame_info *)
-				double_buffer_read(src_ctx->double_buff);
-
-		if ( !frame )
+		if ( double_buffer_read(src_ctx->double_buff,
+						&src_ctx->timer_thread_frame) )
 			return -1;
+
+		frame = &src_ctx->timer_thread_frame;
 	}
 	else
 	{
-		frame = src_ctx->no_timer_thread_frame;
+		frame = &src_ctx->callback_frame;
 	}
 
 	video_data      = frame->video_data;
 	video_data_size = frame->video_data_size;
 	stride          = frame->stride;
 	error_status    = frame->error_status;
+	cap_info.capture_time_sec  = frame->capture_time.tv_sec;
+	cap_info.capture_time_usec = frame->capture_time.tv_usec;
 
 	/* FIXME: right now enforce_framerate() and the capture timer
 	 *        thread's main loop BOTH use the frame_time_next field
@@ -379,10 +307,6 @@ deliver_frame(struct sapi_src_context * src_ctx)
 
 		if ( src_ctx->use_timer_thread )
 		{
-			/* delete frame */
-			free(frame->video_data);
-			free(frame);
-
 			if ( error_status )
 			{
 				/* Let capture thread know that the app
@@ -400,11 +324,66 @@ deliver_frame(struct sapi_src_context * src_ctx)
 	return 0;
 }
 
+/* NOTE: stride-ignorant sapis should pass a stride of zero */
+int
+sapi_src_capture_notify(struct sapi_src_context * src_ctx,
+		char * video_data, int video_data_size,
+		int stride,
+		int error_status)
+{
+	/* NOTE: We may be called here by the capture thread while the
+	 * main thread is clearing capture_data and capture_callback
+	 * from within vidcap_src_capture_stop().
+	 */
+
+	struct frame_info *frame = &src_ctx->callback_frame;
+
+	/* Screen-out useless callbacks */
+	if ( video_data_size < 1 && !error_status )
+	{
+		log_info("callback with no data?\n");
+		return 0;
+	}
+
+	/* Package the video information */
+	frame->video_data_size = video_data_size;
+	frame->error_status = error_status;
+	frame->stride = stride;
+	frame->capture_time = vc_now();
+	frame->video_data = video_data;
+
+	if ( src_ctx->use_timer_thread )
+	{
+		/* buffer the frame - for processing by the timer thread */
+		double_buffer_write(src_ctx->double_buff, frame);
+
+		/* If there's an error, wait here until it's acknowledged
+		 * by the timer thread (after having delivered it to the app).
+		 */
+		if ( error_status )
+			wait_for_error_ack(src_ctx);
+	}
+	else
+	{
+		/* process the frame now */
+		deliver_frame(src_ctx);
+	}
+
+	if ( error_status )
+	{
+		src_ctx->src_state = src_bound;
+		src_ctx->capture_callback = 0;
+		src_ctx->capture_data = VIDCAP_INVALID_USER_DATA;
+	}
+
+	return 0;
+}
+
 unsigned int
 STDCALL sapi_src_timer_thread_func(void *args)
 {
 	struct sapi_src_context * src_ctx = args;
-	struct timeval  tv_now;
+	struct timeval tv_now;
 	const long idle_state_sleep_period_ms = 100;
 	long sleep_ms = idle_state_sleep_period_ms;
 	int first_time = 1;
@@ -414,12 +393,7 @@ STDCALL sapi_src_timer_thread_func(void *args)
 
 	src_ctx->timer_thread_idle = 1;
 
-	if ( gettimeofday(&tv_now, 0) )
-	{
-		src_ctx->capture_timer_thread_started = -1;
-		log_error("gettimeofday not supported\n");
-		return -1;
-	}
+	tv_now = vc_now();
 
 	src_ctx->frame_time_next.tv_sec = tv_now.tv_sec;
 	src_ctx->frame_time_next.tv_usec = tv_now.tv_usec;
@@ -428,7 +402,7 @@ STDCALL sapi_src_timer_thread_func(void *args)
 
 	while ( !src_ctx->kill_timer_thread )
 	{
-		gettimeofday(&tv_now, 0);
+		tv_now = vc_now();
 
 		/* sleep or read? */
 		if ( capture_error || src_ctx->src_state != src_capturing ||
