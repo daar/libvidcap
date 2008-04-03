@@ -3,7 +3,7 @@ dnl Copyright (C) 2007 Wimba, Inc.
 AC_PREREQ(2.59)
 
 dnl package version
-m4_define(VIDCAP_VERSION, [0.2-svn])
+m4_define(VIDCAP_VERSION, [0.3-svn])
 
 AC_INIT([libvidcap], VIDCAP_VERSION, [jpgrayson@gmail.com])
 AC_CONFIG_SRCDIR([include/vidcap/vidcap.h])
@@ -12,7 +12,7 @@ AM_INIT_AUTOMAKE([foreign -Wall])
 AM_MAINTAINER_MODE
 
 dnl libtool library version
-VC_LT_CURRENT=0
+VC_LT_CURRENT=1
 VC_LT_REVISION=0
 VC_LT_AGE=0
 
