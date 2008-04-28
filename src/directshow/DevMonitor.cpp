@@ -26,7 +26,6 @@
 #include <dbt.h>
 #include <process.h>
 #include <string>
-#include "sapi_context.h"
 #include "DevMonitor.h"
 #include "logging.h"
 
@@ -148,6 +147,9 @@ DevMonitor::processWindowsMsgs(HWND hWnd,
 		WPARAM wParam,
 		LPARAM lParam)
 {
+	static DevMonitor *pDevMon = 0;
+	LPCREATESTRUCT lpcstr = 0;
+
 	switch (message)
 	{
 	case WM_CLOSE:
@@ -168,11 +170,95 @@ DevMonitor::processWindowsMsgs(HWND hWnd,
 		PostQuitMessage(0);
 		break;
 
+	case WM_CREATE:
+		// hold on to context for use when WM_DEVICECHANGE occurs
+		lpcstr = (LPCREATESTRUCT)lParam;
+		pDevMon = (DevMonitor *)lpcstr->lpCreateParams;
+		break;
+
+	case WM_DEVICECHANGE:
+		if ( !pDevMon )
+			log_error("Got WM_DEVICECHANGE event, but have no context!\n");
+		else
+			pDevMon->handleDeviceChange(wParam);
+		break;
+
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 
 	return 0;
+}
+
+void
+DevMonitor::handleDeviceChange(WPARAM wParam)
+{
+	std::string str;
+
+	switch (wParam)
+	{
+		case DBT_CONFIGCHANGECANCELED:
+			str.assign("DBT_CONFIGCHANGECANCELED");
+			break;
+		case DBT_CONFIGCHANGED:
+			str.assign("DBT_CONFIGCHANGED");
+			break;
+		case DBT_CUSTOMEVENT:
+			str.assign("DBT_CUSTOMEVENT");
+			break;
+		case DBT_DEVICEARRIVAL:
+			str.assign("DBT_DEVICEARRIVAL");
+			break;
+		case DBT_DEVICEQUERYREMOVE:
+			str.assign("DBT_DEVICEQUERYREMOVE");
+			break;
+		case DBT_DEVICEQUERYREMOVEFAILED:
+			str.assign("DBT_DEVICEQUERYREMOVEFAILED");
+			break;
+		case DBT_DEVICEREMOVECOMPLETE:
+			str.assign("DBT_DEVICEREMOVECOMPLETE");
+			break;
+		case DBT_DEVICEREMOVEPENDING:
+			str.assign("DBT_DEVICEREMOVEPENDING");
+			break;
+		case DBT_DEVICETYPESPECIFIC:
+			str.assign("DBT_DEVICETYPESPECIFIC");
+			break;
+		case DBT_DEVNODES_CHANGED:
+			str.assign("DBT_DEVNODES_CHANGED");
+			break;
+		case DBT_QUERYCHANGECONFIG:
+			str.assign("DBT_QUERYCHANGECONFIG");
+			break;
+		case DBT_USERDEFINED:
+			str.assign("DBT_USERDEFINED");
+			break;
+		default:
+			str.assign("default");
+			break;
+	}
+
+	log_info("[[ Device event: %s ]]\n", str.c_str());
+
+	vc_mutex_lock(&registrationMutex_);
+
+	if ( sapiCtx_ &&
+			sapiCtx_->notify_callback )
+	{
+		// TODO: If the user returns non-zero from
+		// their callback, maybe that should have
+		// some semantic meaning. For example, maybe
+		// that should be a way that the user can
+		// cancel further notification callbacks.
+		sapiCtx_->notify_callback(sapiCtx_, sapiCtx_->notify_data);
+	}
+	else
+	{
+		log_info("[[ no user-defined handler registered ]]\n");
+	}
+
+	vc_mutex_unlock(&registrationMutex_);
+
 }
 
 unsigned int
@@ -183,7 +269,8 @@ DevMonitor::monitorDevices(void * param)
 	// extract instance
 	DevMonitor * pDevMon = (DevMonitor *)param;
 
-	// Create a window, so main thread can communicate with us
+	// Create a window, so we can receive device events.
+	// Pass context for delivery via WM_CREATE event
 	pDevMon->windowHandle_ = CreateWindow(
 			pDevMon->szWindowClass_,
 			pDevMon->szTitle_,
@@ -195,7 +282,7 @@ DevMonitor::monitorDevices(void * param)
 			NULL,
 			NULL,
 			(HINSTANCE)0,
-			NULL);
+			param);
 
 	if ( !pDevMon->windowHandle_ )
 	{
@@ -225,83 +312,18 @@ DevMonitor::monitorDevices(void * param)
 	// Main message loop
 	// Breaks out when PostQuitMessage() is called
 	MSG msg;
-	while (GetMessage(&msg, NULL, 0, 0))
+	int ret;
+	while ( (ret = GetMessage(&msg, NULL, 0, 0)) != 0 )
 	{
-		std::string str;
-	
-		sapi_context * sapiCtx = 
-					static_cast<sapi_context *>(pDevMon->sapiCtx_);
-
-		switch (msg.message)
+		if ( ret == -1 )
 		{
-		case WM_DEVICECHANGE:
-			switch(msg.wParam)
-			{
-			case DBT_CONFIGCHANGECANCELED:
-				str.assign("DBT_CONFIGCHANGECANCELED");
+			log_error("[[ GetMessage() returned error. [%d] ]]\n",
+					GetLastError());
 				break;
-			case DBT_CONFIGCHANGED:
-				str.assign("DBT_CONFIGCHANGED");
-				break;
-			case DBT_CUSTOMEVENT:
-				str.assign("DBT_CUSTOMEVENT");
-				break;
-			case DBT_DEVICEARRIVAL:
-				str.assign("DBT_DEVICEARRIVAL");
-				break;
-			case DBT_DEVICEQUERYREMOVE:
-				str.assign("DBT_DEVICEQUERYREMOVE");
-				break;
-			case DBT_DEVICEQUERYREMOVEFAILED:
-				str.assign("DBT_DEVICEQUERYREMOVEFAILED");
-				break;
-			case DBT_DEVICEREMOVECOMPLETE:
-				str.assign("DBT_DEVICEREMOVECOMPLETE");
-				break;
-			case DBT_DEVICEREMOVEPENDING:
-				str.assign("DBT_DEVICEREMOVEPENDING");
-				break;
-			case DBT_DEVICETYPESPECIFIC:
-				str.assign("DBT_DEVICETYPESPECIFIC");
-				break;
-			case DBT_DEVNODES_CHANGED:
-				str.assign("DBT_DEVNODES_CHANGED");
-				break;
-			case DBT_QUERYCHANGECONFIG:
-				str.assign("DBT_QUERYCHANGECONFIG");
-				break;
-			case DBT_USERDEFINED:
-				str.assign("DBT_USERDEFINED");
-				break;
-			default:
-				str.assign("default");
-				break;
-			}
-			log_info("[[ Device event: %s ]]\n", str.c_str());
-
-			vc_mutex_lock(&pDevMon->registrationMutex_);
-
-			if ( sapiCtx &&
-					sapiCtx->notify_callback )
-			{
-				// TODO: If the user returns non-zero from
-				// their callback, maybe that should have
-				// some semantic meaning. For example, maybe
-				// that should be a way that the user can
-				// cancel further notification callbacks.
-				sapiCtx->notify_callback(sapiCtx, sapiCtx->notify_data);
 			}
 			else
 			{
-				log_info("[[ no user-defined handler registered ]]\n");
-			}
-
-			vc_mutex_unlock(&pDevMon->registrationMutex_);
-
-		default:
-			str.assign("");
 			DispatchMessage(&msg);
-			break;
 		}
 	}
 
@@ -317,7 +339,7 @@ DevMonitor::registerCallback(void * sapiCtx)
 
 	vc_mutex_lock(&registrationMutex_);
 
-	sapiCtx_ = sapiCtx;
+	sapiCtx_ = static_cast<sapi_context *>(sapiCtx);
 
 	vc_mutex_unlock(&registrationMutex_);
 
