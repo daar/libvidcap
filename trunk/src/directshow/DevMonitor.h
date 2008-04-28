@@ -26,6 +26,7 @@
 #define _DEVMONITOR_H_
 
 #include <vidcap/vidcap.h>
+#include "sapi_context.h"
 
 class DevMonitor
 {
@@ -38,6 +39,7 @@ public:
 private:
 	static LRESULT __stdcall processWindowsMsgs(HWND, UINT, WPARAM, LPARAM);
 	static unsigned int STDCALL monitorDevices(void * lpParam);
+	void handleDeviceChange(WPARAM wParam);
 
 private:
 	HANDLE initDoneEvent_;
@@ -50,7 +52,7 @@ private:
 	TCHAR * szTitle_;
 	TCHAR * szWindowClass_;
 
-	void * sapiCtx_;
+	sapi_context * sapiCtx_;
 
 	vc_mutex registrationMutex_;
 };
