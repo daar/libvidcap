@@ -530,7 +530,7 @@ do_double_defaults()
 
 	char * fmt_str;
 
-	log_info("Starting defaults\n");
+	log_info("Starting double defaults\n");
 
 	if ( !(vc = vidcap_initialize()) )
 	{
