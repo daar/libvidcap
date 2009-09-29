@@ -9,11 +9,4 @@ AM_LDFLAGS = $(PTHREAD_CFLAGS)
 
 simplegrab_SOURCES = simplegrab.c
 
-if HAVE_QUICKTIME
-AM_LDFLAGS +=				\
-	-framework Carbon		\
-	-framework QuartzCore		\
-	-framework QuickTime
-endif
-
 EXTRA_DIST = vidcapTester

@@ -61,6 +61,7 @@ fi
 
 if test "x$have_quicktime" = "xyes"; then
   AC_DEFINE(HAVE_QUICKTIME, [], [quicktime headers present])
+  LIBS="-framework Carbon -framework QuartzCore -framework QuickTime"
 fi
 
 if test "x$have_directshow" = "xyes"; then

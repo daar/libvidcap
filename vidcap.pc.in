@@ -6,7 +6,7 @@ includedir=${prefix}/include
 Name: vidcap
 Description: Cross-platform video capture library
 Version: @PACKAGE_VERSION@
-Libs: -L${libdir} -lvidcap @PTHREAD_LIBS@
+Libs: -L${libdir} -lvidcap @LIBS@ @PTHREAD_LIBS@
 Libs.private:
 Cflags: -I${includedir}
 Requires.private: @PKG_REQUIRES@
