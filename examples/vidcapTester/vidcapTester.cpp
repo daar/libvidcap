@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <stdexcept>
 
 #include <QApplication>
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
 	}
 	catch ( const std::runtime_error & e )
 	{
-		qCritical(e.what());
+		qCritical("%s", e.what());
 		usage();
 		return 1;
 	}

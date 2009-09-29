@@ -27,7 +27,7 @@ private slots:
 	void rescanDevices();
 
 private:
-	typedef struct mySourceContext
+	struct mySourceContext
 	{
 		Grabber * grabber;
 		MainWindow * window;
