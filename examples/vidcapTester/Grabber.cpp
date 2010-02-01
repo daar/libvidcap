@@ -132,7 +132,6 @@ Grabber::captureCallback(vidcap_src *, vidcap_capture_info * cap_info)
 
 	case VIDCAP_FOURCC_I420:
 		rgb_buf.resize(width_ * height_ * 4);
-
 		vidcap_i420_to_rgb32(width_, height_, cap_info->video_data,
 				rgb_buf.data());
 		break;

@@ -49,7 +49,7 @@ struct sapi_src_context
 
 	int (*format_validate)(struct sapi_src_context *,
 			const struct vidcap_fmt_info * fmt_nominal,
-			struct vidcap_fmt_info * fmt_native);
+			struct vidcap_fmt_info * fmt_native, int forBinding);
 
 	int (*format_bind)(struct sapi_src_context *,
 			const struct vidcap_fmt_info *);

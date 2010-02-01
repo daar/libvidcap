@@ -151,6 +151,28 @@ map_fourcc_to_ostype(int fourcc, OSType * pixel_format)
 }
 
 static int
+map_nominal_fourcc_to_native_fourcc(int nominal_fourcc)
+{
+/* Convert the format we want to the format to ask for from the device.					*/
+
+	switch ( nominal_fourcc )
+	{
+	case VIDCAP_FOURCC_RGB32:
+	case VIDCAP_FOURCC_YUY2:
+	case VIDCAP_FOURCC_2VUY:
+		return nominal_fourcc;
+
+	case VIDCAP_FOURCC_RGB555:
+	case VIDCAP_FOURCC_RGB24:
+	case VIDCAP_FOURCC_YVU9:
+	case VIDCAP_FOURCC_I420:
+	default:
+		return VIDCAP_FOURCC_RGB32;
+	}
+}
+
+
+static int
 src_info_from_src(struct vidcap_src_info * src_info,
 		const struct sg_source * src)
 {
@@ -516,27 +538,60 @@ source_capture_stop(struct sapi_src_context * src_ctx)
 static int
 source_format_validate(struct sapi_src_context * src_ctx,
 		const struct vidcap_fmt_info * fmt_nominal,
-		struct vidcap_fmt_info * fmt_native)
+		struct vidcap_fmt_info * fmt_native, int forBinding)
 {
+/* This is called in two cases:															*/
+/* 1) when the "hot list" of supported formats is built, i.e. those that libvidcap		*/
+/* tells the client the digitizer can offer.											*/
+/* 2) when the actual desired format is bound.											*/
+/* forBinding indicates how this function is being used. If it is 0, we are				*/
+/* looking for formats that are natively, or very nearly natively supported by the		*/
+/* device, i.e. we are building the supported formats list. If it is 1, we are			*/
+/* attempting to bind to a format, i.e. a client is asking for a specific format.		*/
+/* In that case, we may relax the rules, and be more flexible about what can be			*/
+/* accepted. The quality in this latter case may suffer, but it will still work.		*/
+/* The function result is a bool. True on success.										*/
+
 	struct sapi_qt_src_context * qt_src_ctx =
 		(struct sapi_qt_src_context *)src_ctx->priv;
 
+	/* Set the native device format to the requested format */
 	*fmt_native = *fmt_nominal;
 
-	if ( map_ostype_to_fourcc(qt_src_ctx->src->native_pixel_format,
-				&fmt_native->fourcc) )
-		/* We can always squeeze RGB32 out of quicktime */
+	if( !forBinding )
+	{
+		/* Convert the QuickTime constant representing the device native color space	*/
+		/* into an equivalent libvidcap constant. If the function returns non-zero,		*/
+		/* that means we don't directly support the device native color space, and the	*/
+		/* device should be asked for RGB instead (via behind the scenes QuickTime		*/
+		/* translation)																	*/
+		if ( map_ostype_to_fourcc( qt_src_ctx->src->native_pixel_format, &fmt_native->fourcc ) )
 		fmt_native->fourcc = VIDCAP_FOURCC_RGB32;
 
+		/* If building the format list, we want strict validation of nominal format */
 	if ( !sg_source_format_validate(qt_src_ctx->src,
 				fmt_native->width,
 				fmt_native->height,
 				(float)fmt_native->fps_numerator /
 				(float)fmt_native->fps_denominator) )
 		return 0;
-
 	if ( !sapi_can_convert_native_to_nominal(fmt_native, fmt_nominal) )
 		return 0;
+	}
+	else
+	{
+		/* If binding, pretty much any format will be fine */
+		if( fmt_native->width < 16 || fmt_native->width > 65536 )
+			return 0;
+		if( fmt_native->height < 16 || fmt_native->height > 65536 )
+			return 0;
+		if( (float)fmt_native->fps_numerator /
+			(float)fmt_native->fps_denominator <= 0 )
+			return 0;
+
+		/* Find out what we can best set the device to to get the desired color space */
+		fmt_native->fourcc = map_nominal_fourcc_to_native_fourcc( fmt_nominal->fourcc );
+	}
 
 	return 1;
 }

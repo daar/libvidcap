@@ -454,7 +454,7 @@ vidcap_format_bind(vidcap_src * src,
 		fmt_info = &src_ctx->fmt_list[0];
 	}
 
-	if ( !src_ctx->format_validate(src_ctx, fmt_info, &fmt_native) )
+	if ( !src_ctx->format_validate(src_ctx, fmt_info, &fmt_native, 1) )
 	{
 		log_error("format not supported by source: %dx%d %s %d/%d fps\n",
 				fmt_info->width, fmt_info->height,
