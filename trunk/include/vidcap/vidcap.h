@@ -78,6 +78,7 @@ struct vidcap_capture_info
 	int error_status;
 	long capture_time_sec;
 	long capture_time_usec;
+	struct vidcap_fmt_info format;
 };
 
 typedef int (*vidcap_src_capture_callback) (vidcap_src *,
