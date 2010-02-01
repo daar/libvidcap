@@ -302,6 +302,8 @@ deliver_frame(struct sapi_src_context * src_ctx)
 		cap_info.video_data_size = buf_data_size;
 	}
 
+	cap_info.format = src_ctx->fmt_nominal;
+
 	if ( ( send_frame || error_status ) && cap_callback &&
 			cap_data != VIDCAP_INVALID_USER_DATA )
 	{
