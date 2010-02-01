@@ -23,6 +23,10 @@
  *
  */
 
+#if HAVE_QUICKTIME
+#include <QuickTime/ImageCodec.h>
+#endif
+
 #include "string.h"
 #include "conv.h"
 #include "logging.h"
@@ -101,7 +105,8 @@ destride_planar(int width, int height,
 		int u_width, int u_height,
 		int v_width, int v_height,
 		int y_stride, int u_stride, int v_stride,
-		const char * src, char * dst)
+		const char * src_y, const char * src_u, const char * src_v,
+		char * dst)
 {
 	char * dst_y_even = dst;
 	char * dst_y_odd = dst + width;
@@ -109,12 +114,12 @@ destride_planar(int width, int height,
 	char * dst_u_odd = dst_u_even + u_width;
 	char * dst_v_even = dst_u_even + u_width * u_height;
 	char * dst_v_odd = dst_v_even + v_width;
-	const char * src_y_even = src;
-	const char * src_y_odd = src + y_stride;
-	const char * src_u_even = src + y_stride * height;
-	const char * src_u_odd = src_u_even + u_stride;
-	const char * src_v_even = src_u_even + u_stride * u_height;
-	const char * src_v_odd = src_v_even + v_stride;
+	const char * src_y_even = src_y;
+	const char * src_y_odd = src_y + y_stride;
+	const char * src_u_even = src_u;
+	const char * src_u_odd = src_u + u_stride;
+	const char * src_v_even = src_v;
+	const char * src_v_odd = src_v + v_stride;
 
 	int i;
 
@@ -164,15 +169,34 @@ destridify(int width, int height, int fourcc, int stride,
 
 	switch ( fourcc )
 	{
-	case VIDCAP_FOURCC_I420:
-		log_error("UNTESTED: destriding i420\n");
+	case VIDCAP_FOURCC_I420: {
+		#if HAVE_QUICKTIME
+		/* src points to a PlanarPixmapInfoYUV420 struct, not raw data */
+		PlanarPixmapInfoYUV420 *pmInfo = (PlanarPixmapInfoYUV420 *)src;
+		SInt32 y_offset = EndianS32_BtoN( pmInfo->componentInfoY.offset );
+		SInt32 u_offset = EndianS32_BtoN( pmInfo->componentInfoCb.offset );
+		SInt32 v_offset = EndianS32_BtoN( pmInfo->componentInfoCr.offset );
+		UInt32 y_rowBytes = EndianU32_BtoN( pmInfo->componentInfoY.rowBytes );
+		UInt32 u_rowBytes = EndianU32_BtoN( pmInfo->componentInfoCb.rowBytes );
+		UInt32 v_rowBytes = EndianU32_BtoN( pmInfo->componentInfoCr.rowBytes );
+		return destride_planar(width, height,
+				width / 2, height / 2, width / 2, height / 2,
+				y_rowBytes, u_rowBytes, v_rowBytes,
+				src + y_offset, src + u_offset, src + v_offset, dst);
+		#else
 		/* FIXME: only destride if necessary */
+		const char * src_y = src;
+		const char * src_u = src_y + height * stride;
+		const char * src_v = src_u + (height * stride) / 4;
+		log_error("UNTESTED: destriding i420\n");
 		return destride_planar(width, height,
 				/* fix these u and v strides to be 32-bit aligned? */
 				width / 2, height / 2, width / 2, height / 2,
 				stride, stride / 2, stride / 2,
-				src, dst);
+				src_y, src_u, src_v, dst);
+		#endif
 		break;
+		}
 	case VIDCAP_FOURCC_YUY2:
 		if ( stride == 2 * width )
 			return -1;
@@ -198,15 +222,19 @@ destridify(int width, int height, int fourcc, int stride,
 			return -1;
 		return destride_packed(3 * width, height, stride, src, dst);
 		break;
-	case VIDCAP_FOURCC_YVU9:
-		log_error("UNTESTED: destriding yvu9\n");
+	case VIDCAP_FOURCC_YVU9: {
 		/* FIXME: only destride if necessary */
+		const char * src_y = src;
+		const char * src_u = src_y + height * stride;
+		const char * src_v = src_u + (height * stride) / 4;
+		log_error("UNTESTED: destriding yvu9\n");
 		return destride_planar(width, height,
 				width / 4, height / 4, width / 4, height / 4,
 				/* fix u and v strides to be 32-bit aligned? */
 				stride, stride / 4, stride / 4,
-				src, dst);
+				src_y, src_u, src_v, dst);
 		break;
+		}
 	default:
 		log_error("Invalid fourcc [%s]\n",
 				vidcap_fourcc_string_get(fourcc));

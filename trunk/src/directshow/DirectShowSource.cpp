@@ -53,10 +53,15 @@ DirectShowSource::DirectShowSource(struct sapi_src_context *src,
 	  pMediaControlIF_(0),
 	  nativeMediaType_(0),
 	  graphIsSetup_(false),
-	  graphHandle_(0)
+	  graphHandle_(0),
+	  nativeMediaTypeSufficient_(true),
+	  buffer_(NULL),
+	  bufferSize_(0)
 {
 	IBindCtx * pBindCtx = 0;
 	IMoniker * pMoniker = 0;
+
+	ZeroMemory( &outputMediaType_, sizeof( AM_MEDIA_TYPE ) );
 
 	// Get the capture device - identified by it's long display name
 	if ( !getCaptureDevice(getID(), &pBindCtx, &pMoniker) ){
@@ -111,6 +116,9 @@ DirectShowSource::~DirectShowSource()
 
 	if ( nativeMediaType_ )
 		freeMediaType(*nativeMediaType_);
+
+	if( buffer_ != NULL )
+		CoTaskMemFree( (PVOID)buffer_ );
 
 	destroyCapGraphFoo();
 
@@ -338,6 +346,7 @@ DirectShowSource::setupCapGraphFoo()
 	if ( !graphIsSetup_ )
 	{
 		// set the stream's media type
+		// this tells the capture graph what output to produce
 		HRESULT hr = pStreamConfig_->SetFormat(nativeMediaType_);
 		if ( FAILED(hr) )
 		{
@@ -347,6 +356,10 @@ DirectShowSource::setupCapGraphFoo()
 		}
 
 		// Set sample grabber's media type
+		// this tells the sample grabber which output to produce.
+		if( !nativeMediaTypeSufficient_ )
+			hr = pSampleGrabberIF_->SetMediaType(&outputMediaType_);
+		else
 		hr = pSampleGrabberIF_->SetMediaType(nativeMediaType_);
 		if ( FAILED(hr) )
 		{
@@ -354,6 +367,7 @@ DirectShowSource::setupCapGraphFoo()
 			return -1;
 		}
 
+		// add the sample grabber to the graph
 		hr = pFilterGraph_->AddFilter(pSampleGrabber_, L"Sample Grabber");
 		if ( FAILED(hr) )
 		{
@@ -361,6 +375,9 @@ DirectShowSource::setupCapGraphFoo()
 			return -1;
 		}
 
+		// Set up a capture graph of type video. Source is the capture device.
+		// It will run data through our sample grabber object (which has a
+		// callback to us), and then discard the data in the Null renderer.
 		hr = pCapGraphBuilder_->RenderStream(&PIN_CATEGORY_CAPTURE,
 				&MEDIATYPE_Video,
 				pSource_,
@@ -424,50 +441,109 @@ DirectShowSource::stop()
 
 int
 DirectShowSource::validateFormat(const vidcap_fmt_info * fmtNominal,
-		vidcap_fmt_info * fmtNative) const
+		vidcap_fmt_info * fmtNative, int forBinding ) const
 {
+/* This is called both when checking the hot list and when binding to a specific		*/
+/* format. fmtNative is ignored when checking the hot list, but when binding it			*/
+/* indicates the format of the sample buffer that will be generated.					*/
+/* forBinding indicates how this function is being used. If it is 0, we are				*/
+/* looking for formats that are natively, or very nearly natively supported by the		*/
+/* device, i.e. we are building the supported formats list. If it is 1, we are			*/
+/* attempting to bind to a format, i.e. a client is asking for a specific format.		*/
+/* In that case, we may relax the rules, and be more flexible about what can be			*/
+/* accepted. The quality in this latter case may suffer, but it will still work.		*/
+/* The function result is a bool. True on success.										*/
+
 	AM_MEDIA_TYPE *mediaFormat;
 
-	if ( !findBestFormat(fmtNominal, fmtNative, &mediaFormat) )
-		return 0;
-
-	freeMediaType(*mediaFormat);
+	if ( findBestFormat( fmtNominal, fmtNative, &mediaFormat ) )
+	{
+		freeMediaType( *mediaFormat );
 	return 1;
+	}
+	else
+		if( forBinding )
+		{
+			nativeMediaTypeSufficient_ = false;
+			if( findUsableFormat( fmtNominal, fmtNative, &mediaFormat, false ) )
+			{
+				freeMediaType( *mediaFormat );
+				return 1;
+			}
+		}
+
+	return 0;
 }
 
 int
 DirectShowSource::bindFormat(const vidcap_fmt_info * fmtNominal)
 {
+/* Given the desired sample format in fmtNominal, find a device native format we can	*/
+/* use to get there. The native format does not have to match the nominal format, but	*/
+/* must be convertible to it. If we can't use a simple native format, we will need to	*/
+/* look for something that can get us part of the way there, and then potentially scale	*/
+/* the samples as they arrive in the callback. Further conversion from RGB may also be	*/
+/* needed. Basically we are setting the field nativeMediaType_ to an actual media		*/
+/* format that the device may legally be set to. If that can't get us to the nominal	*/
+/* format, we may need to further create a sample grabber media format that will		*/
+/* convert the data to RGB, which we will scale in the callback function. Note that		*/
+/* libvidcap gets information about the format of the sample buffer by calling			*/
+/* validateFormat(), not bindFormat(). The two functions need to mirror one another		*/
+/* when binding, so that they agree on how the samples will be processed.				*/
+/* The function result is an error code. 0 on success.									*/
+
 	vidcap_fmt_info fmtNative;
 
-	// If we've already got one, free it
+	/* Create input format */
 	if ( nativeMediaType_ )
 	{
 		freeMediaType(*nativeMediaType_);
 		nativeMediaType_ = 0;
 	}
 
-	if ( !findBestFormat(fmtNominal, &fmtNative, &nativeMediaType_) )
-		return 1;
-
-	// set the framerate
-	VIDEOINFOHEADER * vih = (VIDEOINFOHEADER *) nativeMediaType_->pbFormat;
+	/* If nativeMediaTypeSufficient_ is true, fmtNative will be the device format and	*/
+	/* the sample grabber format. If nativeMediaTypeSufficient_ is false, fmtNative		*/
+	/* will only describe the sample grabber format, it will not reflect what we		*/
+	/* apply to the device internally. nativeMediaType_ should be applied to the sample	*/
+	/* grabber element so that it will produce the samples in the format needed by the	*/
+	/* sample callback.																	*/
+	if ( findBestFormat( fmtNominal, &fmtNative, &nativeMediaType_ ) )
+	{
+		nativeMediaTypeSufficient_ = true;
+		// Adjust the native media type to match the desired fps, height and width
+		// We could actually do this in findBestFormat. It wouldn't affect hot
+		// list creation. But let's keep the changes to a minimum for now.
+		VIDEOINFOHEADER * vih = (VIDEOINFOHEADER *)nativeMediaType_->pbFormat;
 	vih->AvgTimePerFrame = 10000000 *
 		fmtNative.fps_denominator /
 		fmtNative.fps_numerator;
-
-	// set the dimensions
 	vih->bmiHeader.biWidth = fmtNative.width;
 	vih->bmiHeader.biHeight = fmtNative.height;
-
 	return 0;
+	}
+	else
+	{
+		/* We could not find a perfect or close match. Now we must do some work.		*/
+		/* Indicate that the native media type is not sufficient to get the format we	*/
+		/* want. Ask DirectShow for RGB samples, (which appears to be legal), and		*/
+		/* allocate buffers into which we can scale the samples received to the correct	*/
+		/* size (or simply flip them if that is sufficient).							*/
+		nativeMediaTypeSufficient_ = false;
+		if( findUsableFormat( fmtNominal, &fmtNative, &nativeMediaType_, true ) )
+			return 0;
+	}
+
+	return 1;
 }
 
 bool
 DirectShowSource::findBestFormat(const vidcap_fmt_info * fmtNominal,
 		vidcap_fmt_info * fmtNative, AM_MEDIA_TYPE **mediaFormat) const
-
 {
+/* Given the nominal format, fill in the AM_MEDIA_TYPE structure with		*/
+/* the native device format to use as the filter graph source device		*/
+/* format. It has to be something the device actually supports.				*/
+
 	bool needsFpsEnforcement = false;
 	bool needsFmtConv = false;
 
@@ -598,10 +674,8 @@ freeThenReturn:
 		// take note of native media type, fps, dimensions, fourcc
 		*mediaFormat = candidateFmtProps[bestFmtNum].mediaFormat;
 
-		fmtNative->fps_numerator =
-						fmtsNative[bestFmtNum].fps_numerator;
-		fmtNative->fps_denominator =
-						fmtsNative[bestFmtNum].fps_denominator;
+		fmtNative->fps_numerator = fmtsNative[bestFmtNum].fps_numerator;
+		fmtNative->fps_denominator = fmtsNative[bestFmtNum].fps_denominator;
 		fmtNative->width = fmtsNative[bestFmtNum].width;
 		fmtNative->height = fmtsNative[bestFmtNum].height;
 		fmtNative->fourcc = fmtsNative[bestFmtNum].fourcc;
@@ -611,6 +685,172 @@ freeThenReturn:
 	delete [] fmtsNative;
 
 	return itCanWork;
+}
+
+
+bool
+DirectShowSource::findUsableFormat( const vidcap_fmt_info *fmtNominal,
+	vidcap_fmt_info * fmtNative, AM_MEDIA_TYPE **mediaFormat, bool forSampling ) const
+{
+/* Ask the device for RGB samples at any size (preferably one bigger than or equal		*/
+/* to what we want). We will resample and flip the frames received before passing		*/
+/* them on to the host. Note that fmtNative is set up as though the device actually		*/
+/* produced the resized RGB samples. This method could probably be combined with		*/
+/* findBestFormat but that one is too complex at this point. forSampling will be true	*/
+/* if we need to create the sample scaling / flipping buffer.							*/
+
+	/* Look for a capability that can provide equal or more data than requested */
+	int bestFormat = 0;
+	if( !findBestCapability( fmtNominal, bestFormat ) )
+	{
+		log_error("failed to find any suitable device interface\n");
+		return false;
+	}
+
+	/* Use the most suitable capability on the capture device */
+	VIDEO_STREAM_CONFIG_CAPS scc;
+	HRESULT hr = pStreamConfig_->GetStreamCaps( bestFormat, mediaFormat, (BYTE *)&scc );
+	if ( FAILED(hr) )
+	{
+		log_error("failed to get device capabilities (%d)\n", hr);
+		return false;
+	}
+
+	/* Pick maximum frame rate and maximum frame size. DV does not use FORMAT_VideoInfo */
+	/* header. In theory. I have seen it there though so I don't know what that is all	*/
+	/* about.																			*/
+	if( (*mediaFormat)->formattype == FORMAT_VideoInfo )
+	{
+		VIDEOINFOHEADER *vih = (VIDEOINFOHEADER *)(*mediaFormat)->pbFormat;
+		vih->AvgTimePerFrame = scc.MinFrameInterval;
+		vih->bmiHeader.biWidth = scc.MaxOutputSize.cx;
+		vih->bmiHeader.biHeight = scc.MaxOutputSize.cy;
+	}
+
+	/* Set special sample grabber media format to produce RGB32 */
+	ZeroMemory( &outputMediaType_, sizeof( AM_MEDIA_TYPE ) );
+	outputMediaType_.majortype = MEDIATYPE_Video;
+	outputMediaType_.subtype = MEDIASUBTYPE_RGB32;
+
+	/* Allocate buffers into which we can convert and vertically flip the RGB sample to	*/
+	/* then hand back to the client. We only need this buffer allocated if we plan to	*/
+	/* sample frames.																	*/
+	if( forSampling )
+	{
+		if( buffer_ != NULL )
+			CoTaskMemFree( (PVOID)buffer_ );
+		bufferSize_ = fmtNominal->width * fmtNominal->height * 4;
+		buffer_ = (BYTE *)CoTaskMemAlloc( bufferSize_ );
+		if( buffer_ == NULL )
+		{
+			freeMediaType( **mediaFormat );
+			return 0;
+		}
+		ZeroMemory( buffer_, bufferSize_ );
+	}
+
+	/* Tell the caller what our faux native output will look like (remember, we will be	*/
+	/* secretly resizing and vertically flipping the data before handing the sample to	*/
+	/* the client).																		*/
+	fmtNative->fourcc = VIDCAP_FOURCC_RGB32;
+	fmtNative->fps_denominator = 100;
+	fmtNative->fps_numerator = (int)(1000000000 / scc.MinFrameInterval);
+	fmtNative->width = fmtNominal->width;
+	fmtNative->height = fmtNominal->height;
+
+	/* For our secret converter, remember what we are getting from the device, and		*/
+	/* remember what we promised to our client.											*/
+	fmtRealSample_ = *fmtNative;
+	fmtRealSample_.width = scc.MaxOutputSize.cx;
+	fmtRealSample_.height = scc.MaxOutputSize.cy;
+	fmtFauxSample_ = *fmtNative;
+
+	return 1;
+}
+
+bool
+DirectShowSource::findBestCapability( const vidcap_fmt_info *fmtNominal, int &bestFormat ) const
+{
+/* Look through the device capabilities, and make sure we are using the largest			*/
+/* available size that satisfies the format we want. Our goal is to scale down, but to	*/
+/* scale the least possible amount of data down.  Failing that, we will settle for		*/
+/* scaling the largest output format up. Frame size is preferred over framerate. Frames	*/
+/* that are large enough will always beat frames that are too small, regardless of the	*/
+/* frame rate.																			*/
+
+	int i;
+	HRESULT hr;
+	VIDEO_STREAM_CONFIG_CAPS scc;
+	AM_MEDIA_TYPE *pMediaType;
+	int desiredWidth = fmtNominal->width;
+	int desiredHeight = fmtNominal->height;
+	LONGLONG desiredInterval = 1000000000 * fmtNominal->fps_denominator / fmtNominal->fps_numerator / 100;
+
+	bestFormat = 0;
+
+	/* Get device capability count */
+	int iCount = 0;
+	int iSize = 0;
+	hr = pStreamConfig_->GetNumberOfCapabilities( &iCount, &iSize );
+	if( hr != S_OK )
+	{
+		log_error( "could not get device capability count\n" );
+		return false;
+	}
+	if( iSize != sizeof( VIDEO_STREAM_CONFIG_CAPS ) )
+	{
+		log_error( "capabilities struct is wrong size (%d not %d)\n",
+			iSize, sizeof( VIDEO_STREAM_CONFIG_CAPS ) );
+		return false;
+	}
+
+	/* Get first interface. Use as base for comparison */
+	hr = pStreamConfig_->GetStreamCaps( 0, &pMediaType, (BYTE *)&scc );
+	if ( FAILED(hr) )
+	{
+		log_error("failed to get device capabilities (0, %d)\n", hr);
+		return false;
+	}
+	freeMediaType( *pMediaType );
+
+	int bestWidth = scc.MaxOutputSize.cx;
+	int bestHeight = scc.MaxOutputSize.cy;
+	LONGLONG bestInterval = scc.MinFrameInterval;
+
+	for( i = 1; i < iCount; i++ )
+	{
+		HRESULT hr = pStreamConfig_->GetStreamCaps( i, &pMediaType, (BYTE *)&scc );
+		if( !FAILED( hr ) )
+			freeMediaType( *pMediaType );
+
+		if( hr == S_OK )
+		{
+			bool bestSizeSmallerThanDesired = bestWidth < desiredWidth || bestHeight < desiredHeight;
+			bool currentSizeBiggerThanOrEqualToDesired = scc.MaxOutputSize.cx >= desiredWidth && scc.MaxOutputSize.cy >= desiredHeight;
+			bool currentSizeSmallerThanBest = scc.MaxOutputSize.cx < bestWidth || scc.MaxOutputSize.cx < bestHeight;
+			bool currentSizeEqualToBest = scc.MaxOutputSize.cx == bestWidth && scc.MaxOutputSize.cy == bestHeight;
+			bool currentSizeBiggerThanBest = scc.MaxOutputSize.cx >= bestWidth && scc.MaxOutputSize.cy >= bestHeight && !currentSizeEqualToBest;
+
+			bool bestRateSlowerThanDesired = bestInterval > desiredInterval;
+			bool currentRateFasterThanOrEqualToDesired = scc.MinFrameInterval <= desiredInterval;
+			bool currentRateSlowerThanBest = scc.MinFrameInterval > bestInterval;
+			bool currentRateFasterThanBestRate = scc.MinFrameInterval < bestInterval;
+
+			if( bestSizeSmallerThanDesired && currentSizeBiggerThanBest ||
+				currentSizeBiggerThanOrEqualToDesired && currentSizeSmallerThanBest ||
+				currentSizeEqualToBest && (
+					bestRateSlowerThanDesired && currentRateFasterThanBestRate ||
+					currentRateFasterThanOrEqualToDesired && currentRateSlowerThanBest) )
+			{
+				bestWidth = scc.MaxOutputSize.cx;
+				bestHeight = scc.MaxOutputSize.cy;
+				bestInterval = scc.MinFrameInterval;
+				bestFormat = i;
+			}
+		}
+	}
+
+	return true;
 }
 
 // Evaluate one of perhaps several native formats for
@@ -676,10 +916,8 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 	}
 
 	// calculate range of supported frame rates
-	double fpsMin = static_cast<double>( 1000000000 / scc.MaxFrameInterval)
-			/ 100.0;
-	double fpsMax = static_cast<double>( 1000000000 / scc.MinFrameInterval)
-			/ 100.0;
+	double fpsMin = static_cast<double>(1000000000 / scc.MaxFrameInterval) / 100.0;
+	double fpsMax = static_cast<double>(1000000000 / scc.MinFrameInterval) / 100.0;
 
 	double fps = static_cast<double>(fmtNominal->fps_numerator) /
 		static_cast<double>(fmtNominal->fps_denominator);
@@ -772,7 +1010,82 @@ DirectShowSource::QueryInterface(REFIID riid, void ** ppv)
 STDMETHODIMP
 DirectShowSource::BufferCB( double dblSampleTime, BYTE * pBuff, long buffSize )
 {
+	/* I can find nothing in the DirectShow documentation about scaling an image. Not	*/
+	/* a thing -after hours of searching. I can only conclude that it isn't an exposed	*/
+	/* API. It may not even exist. If the native format does not match the output		*/
+	/* format, and we need to, scale the sample											*/
+	if( !nativeMediaTypeSufficient_ )
+	{
+		/* If we are here, the nativeMediaType used was not sufficient to get us to the	*/
+		/* desired output to which we bound. So we asked DirectShow to give us RGB		*/
+		/* samples at any size it could manage. So now we have an RGB sample buffer		*/
+		/* described by fmtRealSample_ and we wish to convert it to a sample buffer		*/
+		/* that matches fmtFauxSample_ (which is what we told the client we would give	*/
+		/* it). Note one more twist to the story -DirectShow vertically flips the		*/
+		/* sample buffer, so even if the frame size matches, we need to copy it anyway.	*/
+		ScaleAndFlipImage(
+			pBuff, fmtRealSample_.width, fmtRealSample_.height,
+			buffer_, fmtFauxSample_.width, fmtFauxSample_.height );
+		pBuff = buffer_;
+		buffSize = bufferSize_;
+	}
+
 	return bufferCB_(dblSampleTime, pBuff, buffSize, parent_);
+}
+
+void DirectShowSource::ScaleAndFlipImage(
+	const BYTE * inBuff, int inWidth, int inHeight,
+	BYTE * outBuff, int outWidth, int outHeight )
+{
+	int i;
+	int j;
+
+	if( inBuff != NULL && outBuff != NULL )
+	{
+		if( inWidth == outWidth &&
+			inHeight == outHeight )
+		{
+			/* Just vertically flip the data */
+			for( i = 0; i < outHeight; i++ )
+			{
+				memcpy(
+					outBuff + i * outWidth * 4,
+					inBuff + (inHeight - i - 1) * inWidth * 4,
+					outWidth * 4 );
+			}
+		}
+		else
+		{
+			/* Nearest neighbor. Not awesome, but not bad */
+			int heightTally = max( inHeight, outHeight );
+			int srcRowIndex = 0;
+			for( i = 0; i < outHeight; i++ )
+			{
+				while( heightTally < inHeight )
+				{
+					heightTally += outHeight;
+					srcRowIndex++;
+				}
+				heightTally -= inHeight;
+
+				int widthTally = max( inWidth, outWidth );
+				int srcColIndex = 0;
+				for( j = 0; j < outWidth; j++ )
+				{
+					while( widthTally < inWidth )
+					{
+						widthTally += outWidth;
+						srcColIndex++;
+					}
+					widthTally -= inWidth;
+				
+					*(__int32 *)(outBuff + (i * outWidth + j) * 4) =
+						*(__int32 *)(inBuff + ((inHeight - srcRowIndex - 1) *
+						inWidth + srcColIndex) * 4);
+				}
+			}
+		}
+	}
 }
 
 int

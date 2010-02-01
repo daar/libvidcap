@@ -39,7 +39,7 @@ public:
 	int stop();
 	int bindFormat(const vidcap_fmt_info * fmtInfo);
 	int validateFormat(const vidcap_fmt_info * fmtNominal,
-			vidcap_fmt_info * fmtNative) const;
+			vidcap_fmt_info * fmtNative, int forBinding) const;
 
 	const char * getID() const
 	{

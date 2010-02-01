@@ -40,12 +40,12 @@ _invalid_parameter_handler old_handler;
 static int
 source_format_validate(struct sapi_src_context * src_ctx,
 		const struct vidcap_fmt_info * fmt_nominal,
-		struct vidcap_fmt_info * fmt_native)
+		struct vidcap_fmt_info * fmt_native, int forBinding)
 {
 	SourceStateMachine * dshow_src =
 		static_cast<SourceStateMachine *>(src_ctx->priv);
 
-	return dshow_src->validateFormat(fmt_nominal, fmt_native);
+	return dshow_src->validateFormat(fmt_nominal, fmt_native, forBinding);
 }
 
 static int

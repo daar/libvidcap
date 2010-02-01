@@ -131,6 +131,11 @@ sapi_release(struct sapi_context * sapi_ctx)
 int
 sapi_src_format_list_build(struct sapi_src_context * src_ctx)
 {
+/* Go through the "hot list" and see which ones are natively supported by the device.	*/
+/* Note that QuickTime supports all formats within reason (it only checks for sensible	*/
+/* framerates and frame sizes). Windows will do the same -all formats within reason.	*/
+/* Don't know what Linux will do for now.												*/
+
 	struct vidcap_fmt_info fmt_info;
 	struct vidcap_fmt_info * list = 0;
 	int list_len = 0;
@@ -138,7 +143,7 @@ sapi_src_format_list_build(struct sapi_src_context * src_ctx)
 
 	if ( src_ctx->fmt_list )
 	{
-		log_error("source alread has format list\n");
+		log_error("source already has format list\n");
 		return -1;
 	}
 
@@ -162,7 +167,8 @@ sapi_src_format_list_build(struct sapi_src_context * src_ctx)
 
 				if ( !src_ctx->format_validate(src_ctx,
 							&fmt_info,
-							&fmt_native) )
+							&fmt_native,
+							0) )
 					continue;
 
 				list = realloc(list,

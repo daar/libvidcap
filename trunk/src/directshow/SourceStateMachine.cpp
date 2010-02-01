@@ -427,9 +427,9 @@ SourceStateMachine::doStop()
 
 int
 SourceStateMachine::validateFormat(const vidcap_fmt_info * fmtNominal,
-		vidcap_fmt_info * fmtNative) const
+		vidcap_fmt_info * fmtNative, int forBinding) const
 {
-	return src_->validateFormat(fmtNominal, fmtNative);
+	return src_->validateFormat(fmtNominal, fmtNative, forBinding);
 }
 
 int

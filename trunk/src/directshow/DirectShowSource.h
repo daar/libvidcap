@@ -48,7 +48,7 @@ public:
 	void stop();
 	int bindFormat(const vidcap_fmt_info * fmtInfo);
 	int validateFormat(const vidcap_fmt_info * fmtNominal,
-			vidcap_fmt_info * fmtNative) const;
+			vidcap_fmt_info * fmtNative, int forBinding) const;
 
 	typedef void (*graphEventCBFunc)(void *);
 	static void processGraphEvent(void *);
@@ -70,10 +70,15 @@ private:
 			AM_MEDIA_TYPE **candidateMediaFormat) const;
 	bool findBestFormat(const vidcap_fmt_info * fmtNominal,
 			vidcap_fmt_info * fmtNative, AM_MEDIA_TYPE **mediaFormat) const;
+	bool findUsableFormat( const vidcap_fmt_info *fmtNominal,
+			vidcap_fmt_info * fmtNative, AM_MEDIA_TYPE **mediaFormat, bool forSampling ) const;
+	bool findBestCapability( const vidcap_fmt_info *fmtNominal, int &bestFormat ) const;
 	void freeMediaType(AM_MEDIA_TYPE &) const;
 	bool getCaptureDevice(const char *devLongName,
 			IBindCtx **ppBindCtx,
 			IMoniker **ppMoniker) const;
+	void ScaleAndFlipImage( const BYTE * inBuff, int inWidth, int inHeight,
+			BYTE * outBuff, int outWidth, int outHeight );
 
 	// Fake out COM
 	STDMETHODIMP_(ULONG) AddRef() { return 2; }
@@ -110,6 +115,13 @@ private:
 	AM_MEDIA_TYPE *nativeMediaType_;
 	HANDLE *graphHandle_;
 	bool graphIsSetup_;
+
+	mutable bool nativeMediaTypeSufficient_;
+	mutable AM_MEDIA_TYPE outputMediaType_;
+	mutable BYTE * buffer_;
+	mutable long bufferSize_;
+	mutable vidcap_fmt_info fmtRealSample_;
+	mutable vidcap_fmt_info fmtFauxSample_;
 };
 
 #endif

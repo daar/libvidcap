@@ -658,7 +658,7 @@ source_capture_stop(struct sapi_src_context * src_ctx)
 static int
 source_format_validate(struct sapi_src_context * src_ctx,
 		const struct vidcap_fmt_info * fmt_nominal,
-		struct vidcap_fmt_info * fmt_native)
+		struct vidcap_fmt_info * fmt_native, int forBinding )
 {
 	struct sapi_v4l_src_context * v4l_src_ctx =
 		(struct sapi_v4l_src_context *)src_ctx->priv;
