@@ -90,7 +90,7 @@ vc_now(void)
 	LARGE_INTEGER li;
 	__int64 t;
 	static int tzflag;
-	const __int64 EPOCHFILETIME = 116444736000000000i64;
+	const __int64 EPOCHFILETIME = 116444736000000000;
 
 	GetSystemTimeAsFileTime(&ft);
 	li.LowPart  = ft.dwLowDateTime;

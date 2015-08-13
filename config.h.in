@@ -1,0 +1,5 @@
+/* config.h, generated from config.h.in by CMake ${CMAKE_VERSION} */
+
+#cmakedefine HAVE_GETTIMEOFDAY
+#cmakedefine HAVE_NANOSLEEP
+#cmakedefine HAVE_SNPRINTF
