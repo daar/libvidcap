@@ -7,6 +7,7 @@ This repo is created to add and test some new features and improvements from the
 
 - ~~cmake support~~
 - ~~doxygen documentation~~
+- testing supported backends
 - folder input support
 - v4l2 support
 - different camera SDK support
