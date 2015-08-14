@@ -184,7 +184,7 @@ destridify(int width, int height, int fourcc, int stride,
 				y_rowBytes, u_rowBytes, v_rowBytes,
 				src + y_offset, src + u_offset, src + v_offset, dst);
 		#else
-		/* FIXME: only destride if necessary */
+		/** \bug only destride if necessary */
 		const char * src_y = src;
 		const char * src_u = src_y + height * stride;
 		const char * src_v = src_u + (height * stride) / 4;
@@ -223,7 +223,7 @@ destridify(int width, int height, int fourcc, int stride,
 		return destride_packed(3 * width, height, stride, src, dst);
 		break;
 	case VIDCAP_FOURCC_YVU9: {
-		/* FIXME: only destride if necessary */
+		/** \bug only destride if necessary */
 		const char * src_y = src;
 		const char * src_u = src_y + height * stride;
 		const char * src_v = src_u + (height * stride) / 4;

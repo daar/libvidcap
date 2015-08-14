@@ -26,6 +26,14 @@
 #ifndef _DOUBLE_BUFFER_H
 #define _DOUBLE_BUFFER_H
 
+/** \file double_buffer.h
+ *  \ingroup Core
+ *  \brief Core library functions.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include "os_funcs.h"
 
 #define _DOUBLE_MEANS_TWO_ 2
@@ -41,7 +49,7 @@ struct double_buffer
 
 	void (*copy_object)(void *, const void *);
 
-	/* TODO: remove */
+	/** \todo remove */
 	int num_insert_too_far_failures;
 };
 

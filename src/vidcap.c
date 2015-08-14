@@ -306,7 +306,7 @@ vidcap_src_acquire(vidcap_sapi * sapi,
 		return 0;
 	}
 
-	/* TODO: right now we always use the timer thread to enforce
+	/** \todo right now we always use the timer thread to enforce
 	 *        a very accurate framerate. Alternatively, we could
 	 *        allow an application to choose to forego this feature
 	 *        and the associated overhead
@@ -318,7 +318,7 @@ vidcap_src_acquire(vidcap_sapi * sapi,
 		src_ctx->kill_timer_thread = 0;
 		src_ctx->capture_timer_thread_started = 0;
 		src_ctx->capture_timer_thread = 0;
-		/* FIXME: memory barrier needed? */
+		/** \bug memory barrier needed? */
 
 		if ( vc_create_thread(&src_ctx->capture_timer_thread,
 					sapi_src_timer_thread_func, src_ctx,
@@ -574,8 +574,8 @@ vidcap_src_capture_start(vidcap_src * src,
 	/* Assume worst-case video data with stride is 50%
 	 * bigger than without a stride.
 	 */
-	/* FIXME: Defer measurement of stride-full 
-	 *        buffer until first capture callback
+	/** \bug Defer measurement of stride-full 
+	 *           buffer until first capture callback
 	 */
 	const int stride_full_buf_size = src_ctx->stride_free_buf_size * 3 / 2;
 
@@ -687,7 +687,7 @@ vidcap_src_capture_stop(vidcap_src * src)
 
 	if ( src_ctx->use_timer_thread )
 	{
-		/* FIXME: memory barrier needed? */
+		/** \bug memory barrier needed? */
 		sapi_src_timer_thread_idled(src_ctx);
 	}
 

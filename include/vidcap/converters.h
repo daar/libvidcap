@@ -26,6 +26,14 @@
 #ifndef _CONVERTERS_H
 #define _CONVERTERS_H
 
+/** \file converters.h
+ *  \ingroup API
+ *  \brief Public vidcap converters API functions.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif

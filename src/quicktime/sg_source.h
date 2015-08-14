@@ -26,6 +26,14 @@
 #ifndef _SG_SOURCE_H
 #define _SG_SOURCE_H
 
+/** \file sg_source.h
+ *  \ingroup QuickTime
+ *  \brief QuickTime support files.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #include <QuickTime/QuickTime.h>
 #include "quicktime/gworld.h"
 

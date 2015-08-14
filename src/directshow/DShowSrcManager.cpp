@@ -88,7 +88,7 @@ DShowSrcManager::registerNotifyCallback(void * sapiCtx)
 int
 DShowSrcManager::scan(struct sapi_src_list * srcList) const
 {
-	//FIXME: consider multiple sources per device
+	/** \bug consider multiple sources per device */
 
 	int newListLen = 0;
 

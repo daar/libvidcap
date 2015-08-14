@@ -301,7 +301,7 @@ DirectShowSource::resetCapGraphFoo()
 		{
 			log_error("failed to remove Sample Grabber (%d)\n", hr);
 
-			//FIXME: is this still necessary? Does it still work?
+			/** \bug is this still necessary? Does it still work? */
 			if ( hr == VFW_E_NOT_STOPPED )
 			{
 				log_error("Capture wasn't stopped. Repeating STOP...\n");
@@ -923,9 +923,10 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 		static_cast<double>(fmtNominal->fps_denominator);
 
 	// check framerate
-	// TODO: a timer thread could enforce this framerate,
-	//       but would need to pass src_ctx->use_timer_thread here
-	//       to know that
+	/** \todo a timer thread could enforce this framerate,
+	 *        but would need to pass src_ctx->use_timer_thread here
+	 *        to know that
+	 */
 	if ( fps > fpsMax )
 	{
 		freeMediaType(*pMediaType);
@@ -963,7 +964,7 @@ DirectShowSource::checkFormat(const vidcap_fmt_info * fmtNominal,
 
 	if ( *needsFramerateEnforcing )
 	{
-		//FIXME: Use float. Drop numerator/denominator business.
+		/** \bug Use float. Drop numerator/denominator business. */
 		fmtNative->fps_numerator = (int)fpsMax;
 		fmtNative->fps_denominator = 1;
 	}

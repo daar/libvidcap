@@ -26,6 +26,14 @@
 #ifndef _OS_FUNCS_H
 #define _OS_FUNCS_H
 
+/** \file os_funcs.h
+ *  \ingroup Core
+ *  \brief OS dependant functions.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -116,7 +124,7 @@ vc_create_thread(vc_thread *thread,
 	*thread = (uintptr_t)_beginthreadex(NULL, 0, thread_func,
 			(void *)args, 0, thread_id);
 
-	/* FIXME: log the error */
+	/** \bug log the error */
 	if ( thread == 0 )
 		ret = errno;
 #else
@@ -124,7 +132,7 @@ vc_create_thread(vc_thread *thread,
 
 	ret = pthread_create(thread, NULL, func, args);
 
-	/* FIXME: log an error */
+	/** \bug log an error */
 #endif
 
 	return ret;

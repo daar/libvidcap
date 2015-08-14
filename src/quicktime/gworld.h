@@ -26,6 +26,16 @@
 #ifndef _GWORLD_H
 #define _GWORLD_H
 
+/** \addtogroup QuickTime */
+
+/** \file gworld.h
+ *  \ingroup QuickTime
+ *  \brief QuickTime support files.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #include <QuickTime/QuickTime.h>
 
 struct gworld_info

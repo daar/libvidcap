@@ -714,8 +714,8 @@ source_format_bind(struct sapi_src_context * src_ctx,
 	v4l_src_ctx->window.y = 0;
 	v4l_src_ctx->window.width = fmt_info->width;
 	v4l_src_ctx->window.height = fmt_info->height;
-	/* TODO: for pwc, framerate is encoded in flags. For other
-	 * cameras, who knows.
+	/** \todo for pwc, framerate is encoded in flags. For other
+	 *        cameras, who knows.
 	 */
 	v4l_src_ctx->window.flags =
 		(v4l_src_ctx->window.flags & ~v4l_fps_mask) |
@@ -938,7 +938,7 @@ notify_thread_proc(void * data)
 	{
 		vc_mutex_lock(&v4l_ctx->mutex);
 
-		/* TODO: look for devices */
+		/** \todo look for devices */
 
 		vc_mutex_unlock(&v4l_ctx->mutex);
 
@@ -1032,7 +1032,7 @@ sapi_v4l_initialize(struct sapi_context * sapi_ctx)
 	sapi_ctx->description = description;
 	sapi_ctx->priv = v4l_ctx;
 
-	/* TODO: Use pwc-specific ioctls. VIDIOCPWCSCQUAL */
+	/** \todo Use pwc-specific ioctls. VIDIOCPWCSCQUAL */
 
 	sapi_ctx->acquire = sapi_acquire;
 	sapi_ctx->release = sapi_release;

@@ -25,6 +25,16 @@
 #ifndef _DIRECTSHOWSOURCE_H_
 #define _DIRECTSHOWSOURCE_H_
 
+/**  \addtogroup DirectShow */
+
+/** \file DirectShowSource.h
+ *  \ingroup DirectShow
+ *  \brief DirectShow implementation code.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <stdexcept>
 #include <qedit.h>
 #include <DShow.h>

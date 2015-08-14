@@ -1,8 +1,14 @@
 # libvidcap
-libvidcap is a cross-platform library for capturing video from webcams and other video capture devices. The oridignal code originates from: https://sourceforge.net/projects/libvidcap/
+libvidcap is a cross-platform library for capturing video from webcams and other video capture devices. 
 
-I'm using this repo on github to add and test some new features like:
+I'm using this repo on github to add and test some new features and improvements like:
 
-- cmake support
+- cmake support (done)
+- doxygen documentation (done)
+- folder input support
 - v4l2 support
-- camera SDK plugin support
+- different camera SDK support
+- code refactoring and simplification
+
+
+The original code originates from: https://sourceforge.net/projects/libvidcap/

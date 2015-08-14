@@ -241,8 +241,8 @@ deliver_frame(struct sapi_src_context * src_ctx)
 	cap_info.capture_time_sec  = frame->capture_time.tv_sec;
 	cap_info.capture_time_usec = frame->capture_time.tv_usec;
 
-	/* FIXME: right now enforce_framerate() and the capture timer
-	 *        thread's main loop BOTH use the frame_time_next field
+	/** \bug right now enforce_framerate() and the capture timer
+	 *           thread's main loop BOTH use the frame_time_next field
 	 */
 	if ( src_ctx->use_timer_thread )
 	{
@@ -307,9 +307,9 @@ deliver_frame(struct sapi_src_context * src_ctx)
 	if ( ( send_frame || error_status ) && cap_callback &&
 			cap_data != VIDCAP_INVALID_USER_DATA )
 	{
-		/* FIXME: Need to check return code (and pass it back).
-		 *        Application may want capture to stop.
-		 *        Ensure we don't perform any more callbacks.
+		/** \bug Need to check return code (and pass it back).
+		 *           Application may want capture to stop.
+		 *           Ensure we don't perform any more callbacks.
 		 */
 		cap_callback(src_ctx, cap_data, &cap_info);
 
@@ -397,7 +397,7 @@ STDCALL sapi_src_timer_thread_func(void *args)
 	int first_time = 1;
 	int got_frame = 0;
 	int ret;
-	int capture_error = 0;    /* FIXME: perhaps should exit on error */
+	int capture_error = 0;    /** \bug perhaps should exit on error */
 
 	src_ctx->timer_thread_idle = 1;
 
@@ -437,7 +437,7 @@ STDCALL sapi_src_timer_thread_func(void *args)
 		else
 		{
 			src_ctx->timer_thread_idle = 0;
-			/* FIXME: memory barrier needed? */
+			/** \bug memory barrier needed? */
 
 			/* attempt to read and deliver a frame */
 			ret = deliver_frame(src_ctx);
@@ -474,7 +474,7 @@ STDCALL sapi_src_timer_thread_func(void *args)
 			}
 		}
 
-		/* FIXME: memory barrier needed? */
+		/** \bug memory barrier needed? */
 		src_ctx->timer_thread_idle = 1;
 	}
 

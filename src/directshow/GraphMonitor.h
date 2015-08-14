@@ -25,6 +25,14 @@
 #ifndef _GRAPHMONITOR_H_
 #define _GRAPHMONITOR_H_
 
+/** \file GraphMonitor.h
+ *  \ingroup DirectShow
+ *  \brief DirectShow implementation code.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include "os_funcs.h"
 
 class GraphMonitor

@@ -30,6 +30,14 @@
 extern "C" {
 #endif
 
+/** \file hotlist.h
+ *  \ingroup Core
+ *  \brief Core library functions.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 struct hot_resolution
 {
 	int width;

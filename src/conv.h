@@ -26,6 +26,16 @@
 #ifndef _CONV_H
 #define _CONV_H
 
+/** \addtogroup Core */
+
+/** \file conv.h
+ *  \ingroup Core
+ *  \brief Core library functions.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <vidcap/vidcap.h>
 #include <vidcap/converters.h>
 

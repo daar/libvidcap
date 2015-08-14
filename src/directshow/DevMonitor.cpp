@@ -97,7 +97,7 @@ DevMonitor::DevMonitor()
 
 	// wait for signal from thread that it is ready
 	DWORD rc = WaitForSingleObject(initDoneEvent_, INFINITE);
-	//FIXME: consider a timeout
+	/** \bug consider a timeout */
 
 	if ( threadStatus_ == initDone )
 		return;
@@ -245,11 +245,12 @@ DevMonitor::handleDeviceChange(WPARAM wParam)
 	if ( sapiCtx_ &&
 			sapiCtx_->notify_callback )
 	{
-		// TODO: If the user returns non-zero from
-		// their callback, maybe that should have
-		// some semantic meaning. For example, maybe
-		// that should be a way that the user can
-		// cancel further notification callbacks.
+		/** \todo If the user returns non-zero from
+		 *        their callback, maybe that should have
+		 *        some semantic meaning. For example, maybe
+		 *        that should be a way that the user can
+		 *        cancel further notification callbacks.
+		 */
 		sapiCtx_->notify_callback(sapiCtx_, sapiCtx_->notify_data);
 	}
 	else
@@ -264,7 +265,7 @@ DevMonitor::handleDeviceChange(WPARAM wParam)
 unsigned int
 DevMonitor::monitorDevices(void * param)
 {
-	//FIXME: move window creation to constructor
+	/** \bug move window creation to constructor */
 
 	// extract instance
 	DevMonitor * pDevMon = (DevMonitor *)param;

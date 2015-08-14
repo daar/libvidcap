@@ -210,7 +210,7 @@ source_decomp_callback(void * decomp_tracking_refcon,
 		if ( result == codecBadDataErr )
 			log_warn("source_decomp_callback codecBadDataErr\n");
 		else
-			/* TODO: In this case, we may want to stop capture */
+			/** \todo In this case, we may want to stop capture */
 			log_warn("source_decomp_callback failure %ld\n",
 				result);
 		return;

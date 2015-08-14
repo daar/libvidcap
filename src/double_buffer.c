@@ -72,7 +72,7 @@ double_buffer_create( void (*copy_func)(void *, const void *), void *object1, vo
 	vc_mutex_init(&db_buff->locks[0]);
 	vc_mutex_init(&db_buff->locks[1]);
 
-	/* TODO: remove this (debug) counter */
+	/** \todo remove this (debug) counter */
 	db_buff->num_insert_too_far_failures       = 0;
 
 	return db_buff;

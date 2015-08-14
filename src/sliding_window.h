@@ -26,6 +26,14 @@
 #ifndef _SLIDING_WINDOW_H
 #define _SLIDING_WINDOW_H
 
+/** \file sliding_window.h
+ *  \ingroup Core
+ *  \brief Core library functions.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 struct sliding_window
 {
 	int window_len;

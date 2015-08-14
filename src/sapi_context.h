@@ -26,6 +26,14 @@
 #ifndef _SAPI_CONTEXT_H
 #define _SAPI_CONTEXT_H
 
+/** \file sapi_context.h
+ *  \ingroup Core
+ *  \brief Core library functions.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <vidcap/vidcap.h>
 #include "double_buffer.h"
 #include "sliding_window.h"

@@ -25,6 +25,14 @@
 #ifndef _DIRECTSHOWOBJECT_H_
 #define _DIRECTSHOWOBJECT_H_
 
+/** \file DirectShowObject.h
+ *  \ingroup DirectShow
+ *  \brief DirectShow implementation code.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 class DirectShowObject
 {
 

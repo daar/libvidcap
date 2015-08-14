@@ -26,18 +26,30 @@
 #ifndef _VIDCAP_H
 #define _VIDCAP_H
 
+/** \addtogroup API */
+
+/** \file vidcap.h
+ *  \ingroup API
+ *  \brief Public vidcap API functions.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define VIDCAP_NAME_LENGTH 256
 
+/** Fourcc values available from vidcap */
 enum vidcap_fourccs {
 	VIDCAP_FOURCC_I420   = 100,
 	VIDCAP_FOURCC_YUY2   = 101,
 	VIDCAP_FOURCC_RGB32  = 102,
 };
 
+/** The different log levels that vidcap supports */
 enum vidcap_log_level {
 	VIDCAP_LOG_NONE  = 0,
 	VIDCAP_LOG_ERROR = 10,

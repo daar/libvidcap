@@ -26,6 +26,14 @@
 #ifndef _LOGGING_H
 #define _LOGGING_H
 
+/** \file logging.h
+ *  \ingroup Core
+ *  \brief Message logging functions.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <stdio.h>
 
 #ifdef __cplusplus

@@ -133,7 +133,7 @@ source_acquire(struct sapi_context * sapi_ctx,
 		struct sapi_src_context * src_ctx,
 		const struct vidcap_src_info * src_info)
 {
-	//FIXME: check that this src info matches a real src (when not NULL)
+	/** \bug check that this src info matches a real src (when not NULL) */
 
 	DShowSrcManager * src_manager =
 		static_cast<DShowSrcManager *>(sapi_ctx->priv);
@@ -141,10 +141,11 @@ source_acquire(struct sapi_context * sapi_ctx,
 	// Handle default case - user passes NULL
 	if ( !src_info )
 	{
-		// TODO: This method for choosing the default source has
-		// the problem where subsequent calls to vidcap_src_acquire()
-		// requesting the default source will result in failure.
-		// We should choose the first non-acquired source.
+		/** \todo This method for choosing the default source has
+		 *        the problem where subsequent calls to vidcap_src_acquire()
+		 *        requesting the default source will result in failure.
+		 *        We should choose the first non-acquired source.
+		 */
 		if ( scan_sources(sapi_ctx, &sapi_ctx->user_src_list) > 0 )
 		{
 			src_info = &sapi_ctx->user_src_list.list[0];

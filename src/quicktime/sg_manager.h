@@ -26,6 +26,14 @@
 #ifndef _SG_MANAGER_H
 #define _SG_MANAGER_H
 
+/** \file sg_manager.h
+ *  \ingroup QuickTime
+ *  \brief QuickTime support files.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #include <QuickTime/QuickTime.h>
 
 #include "sg_source.h"

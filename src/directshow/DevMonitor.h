@@ -25,6 +25,14 @@
 #ifndef _DEVMONITOR_H_
 #define _DEVMONITOR_H_
 
+/** \file DevMonitor.h
+ *  \ingroup DirectShow
+ *  \brief DirectShow implementation code.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <vidcap/vidcap.h>
 #include "sapi_context.h"
 

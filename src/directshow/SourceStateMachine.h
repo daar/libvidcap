@@ -25,6 +25,14 @@
 #ifndef _SOURCESTATEMACHINE_H_
 #define _SOURCESTATEMACHINE_H_
 
+/** \file SourceStateMachine.h
+ *  \ingroup DirectShow
+ *  \brief DirectShow implementation code.
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include "DirectShowSource.h"
 #include "sapi_context.h"
 
