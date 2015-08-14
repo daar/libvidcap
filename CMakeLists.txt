@@ -24,27 +24,22 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 #-----------------------------------------------------------------------------
 # Check build environment
 
-include(CheckSymbolExists)
 include(CheckFunctionExists)
 
-#check_symbol_exists(gettimeofday "time.h"   HAVE_GETTIMEOFDAY)
-check_function_exists(gettimeofday HAVE_GETTIMEOFDAY)
-if(NOT HAVE_GETTIMEOFDAY)
-	#TODO figure out why cmake cannot find nanosleep on linux
-    message("gettimeofday NOT found!")
-	set (HAVE_GETTIMEOFDAY 1)
+check_function_exists(gettimeofday	HAVE_GETTIMEOFDAY)
+if(HAVE_GETTIMEOFDAY)
+	add_definitions(-DHAVE_GETTIMEOFDAY)	
 endif()
 
-check_function_exists(nanosleep HAVE_NANOSLEEP)
-if(NOT HAVE_NANOSLEEP)
-	#TODO figure out why cmake cannot find nanosleep on linux
-    message("nanosleep NOT found!")
-	set (HAVE_NANOSLEEP 1)
+check_function_exists(nanosleep		HAVE_NANOSLEEP)
+if(HAVE_NANOSLEEP)
+	add_definitions(-DHAVE_NANOSLEEP)	
 endif()
 
-check_function_exists(snprintf     HAVE_SNPRINTF)
-
-configure_file(config.h.in ${CMAKE_BINARY_DIR}/config.h)
+check_function_exists(snprintf		HAVE_SNPRINTF)
+if(HAVE_SNPRINTF)
+	add_definitions(-DHAVE_SNPRINTF)	
+endif()
 
 find_package (Threads)
 
@@ -52,7 +47,7 @@ find_package (Threads)
 # Set global build flags, these will be used for the library and examples
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter ${PTHREAD_CFLAGS}")
-set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter ${PTHREAD_CFLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter ${PTHREAD_CFLAGS}")
 
 #-----------------------------------------------------------------------------
 # add correct video support, depending on platform and/or optional settings
@@ -85,7 +80,7 @@ if(UNIX AND NOT APPLE)
 	option(WITH_V4L2 "Build with V4L2 support (not implemented yet)" OFF)
 
 	if (WITH_V4L AND WITH_V4L2)
-		message(FATAL_ERROR "Either select the V4L of V4L2 SDK")
+		message(FATAL_ERROR "Either select the V4L or V4L2 SDK")
 	endif()
 
 	if (WITH_V4L)
@@ -104,11 +99,8 @@ if(UNIX AND NOT APPLE)
 endif()
 #-----------------------------------------------------------------------------
 
-#HAVE_CONFIG_H is allways enabled, so do we need this define?
-add_definitions(-DHAVE_CONFIG_H)
-
 # Allow the developer to select if dynamic or static libraries are built
-OPTION (BUILD_SHARED_LIBS "Build videocap as shared library" OFF)
+option(WITH_SHARED_LIBS "Build videocap as shared library" OFF)
 
 add_subdirectory(src)
 
