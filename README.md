@@ -1,4 +1,4 @@
-What is [libvidcap][1]?
+![libvidcap][2]
 ====
 
 [libvidcap][1] is a cross-platform library for capturing video from webcams and other video capture devices. 
@@ -41,3 +41,4 @@ Supported video backends are;
 - Apple : Quicktime
 
 [1]: https://sourceforge.net/projects/libvidcap/
+[2]: https://github.com/daar/libvidcap/blob/master/doc/libvidcap-logo.png
