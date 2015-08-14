@@ -35,7 +35,7 @@ Clone the repo (lets assume that you have a folder `/Users/YOU/src`)
   cmake ../libvidcap
   make
   ```
-Supported video libraries;
+Supported video backends are;
 - Linux : V4L
 - Windows : DirectShow
 - Apple : Quicktime
