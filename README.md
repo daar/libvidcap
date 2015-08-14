@@ -30,8 +30,8 @@ Clone the repo (lets assume that you have a folder `/Users/YOU/src`)
  
   ```bash
   cd /Users/YOU/
-  mkdir build-release
-  cd build-release
+  mkdir build
+  cd build
   cmake ../libvidcap
   make
   ```
