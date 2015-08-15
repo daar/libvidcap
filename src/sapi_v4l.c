@@ -25,7 +25,13 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/videodev.h>
+
+#ifdef USE_V4L1_COMPAT_HEADER
+	#include <linux/videodev.h>
+#else
+	#include <libv4l1-videodev.h>
+#endif // USE_V4L1_COMPAT_HEADER
+
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -119,7 +125,7 @@ parse_src_identifier(const char * identifier,
 }
 
 static int
-map_fourcc_to_palette(int fourcc, __u16 * palette)
+map_fourcc_to_palette(int fourcc, uint16_t * palette)
 {
 	switch ( fourcc )
 	{
@@ -158,7 +164,7 @@ map_fourcc_to_palette(int fourcc, __u16 * palette)
 }
 
 static int
-map_palette_to_fourcc(__u16 palette, int * fourcc)
+map_palette_to_fourcc(uint16_t palette, int * fourcc)
 {
 	switch ( palette )
 	{
@@ -665,7 +671,7 @@ source_format_validate(struct sapi_src_context * src_ctx,
 
 	*fmt_native = *fmt_nominal;
 
-	__u16 palette;
+	uint16_t palette;
 
 	if ( fmt_nominal->width < v4l_src_ctx->caps.minwidth ||
 			fmt_nominal->width > v4l_src_ctx->caps.maxwidth ||

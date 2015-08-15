@@ -16,6 +16,10 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 		"\n ")
 endif()
 
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
+endif()
+
 cmake_minimum_required(VERSION 2.6)
 project(libvidcap)
 
@@ -27,19 +31,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 include(CheckFunctionExists)
 
 check_function_exists(gettimeofday	HAVE_GETTIMEOFDAY)
-if(HAVE_GETTIMEOFDAY)
-	add_definitions(-DHAVE_GETTIMEOFDAY)	
-endif()
-
 check_function_exists(nanosleep		HAVE_NANOSLEEP)
-if(HAVE_NANOSLEEP)
-	add_definitions(-DHAVE_NANOSLEEP)	
-endif()
-
 check_function_exists(snprintf		HAVE_SNPRINTF)
-if(HAVE_SNPRINTF)
-	add_definitions(-DHAVE_SNPRINTF)	
-endif()
 
 find_package (Threads)
 
@@ -83,22 +76,29 @@ if(UNIX AND NOT APPLE)
 		message(FATAL_ERROR "Either select the V4L or V4L2 SDK")
 	endif()
 
-	if (WITH_V4L)
-		find_package(V4L)
-		if(V4L_FOUND)
-			add_definitions(-DHAVE_V4L)
-		endif()
+	#this macro will detect V4L1 and V4L2
+	find_package(V4L)
+
+	if(WITH_V4L AND V4L1_FOUND)
+		set(HAVE_V4L 1)
 	endif()
 
-	if (WITH_V4L2)
-		find_package (V4L2)
-		if(V4L2_FOUND)
-			add_definitions(-DHAVE_V4L2)
-		endif()
+	if(WITH_V4L2 AND V4L2_FOUND)
+		SET(HAVE_V4L2 1)
+	endif()
+
+	if(V4L1_COMPATIBILITY_HEADER)
+		set(USE_V4L1_COMPAT_HEADER 1)
 	endif()
 endif()
-#-----------------------------------------------------------------------------
 
+#-----------------------------------------------------------------------------
+# write the config file
+
+configure_file(config.h.in ${CMAKE_BINARY_DIR}/config.h)
+add_definitions(-DHAVE_CONFIG_H)
+
+#-----------------------------------------------------------------------------
 # Allow the developer to select if dynamic or static libraries are built
 option(WITH_SHARED_LIBS "Build videocap as shared library" OFF)
 

@@ -1,5 +1,19 @@
 /* config.h, generated from config.h.in by CMake ${CMAKE_VERSION} */
 
+#ifndef CONFIG_H
+#define CONFIG_H
+
 #cmakedefine HAVE_GETTIMEOFDAY
 #cmakedefine HAVE_NANOSLEEP
 #cmakedefine HAVE_SNPRINTF
+
+/* libvidcap backends */
+#cmakedefine HAVE_DIRECTSHOW
+
+#cmakedefine HAVE_V4L
+#cmakedefine HAVE_V4L2
+#cmakedefine USE_V4L1_COMPAT_HEADER
+
+#cmakedefine HAVE_QUICKTIME
+
+#endif // CONFIG_H
