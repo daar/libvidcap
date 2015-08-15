@@ -13,7 +13,7 @@ This repo is created to add and test some new features and improvements from the
 - different camera SDK support
 - code refactoring and simplification
 
-For more information about the library and it's internals, plese visit the [wiki][3].
+For more information about the library and it's internals, please visit the [wiki][3].
 
 ----------
 
