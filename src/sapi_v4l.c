@@ -54,6 +54,9 @@ enum
 	v4l_fps_shift = 16,
 };
 
+/**
+ * A V4L specific context
+ */
 struct sapi_v4l_context
 {
 	vc_mutex mutex;
@@ -359,13 +362,18 @@ src_list_device_scan(struct sapi_src_list * src_list,
 
 	if ( ioctl(fd, VIDIOCGCAP, &caps) == -1 )
 	{
-		log_warn("failed to get capabilities for %s\n", device_path);
+		if (EINVAL == errno) {
+			log_warn("failed to get capabilities %s is no V4L1 device\n", device_path);
+		} else {
+			log_warn("failed to get capabilities for %s (errno: %d)\n", device_path, errno);
+		}
 		ret = -1;
 		goto bail;
 	}
 
 	if ( caps.type != VID_TYPE_CAPTURE )
 	{
+		log_warn("%s is no V4L1 video capture device\n", device_path);
 		ret = -1;
 		goto bail;
 	}

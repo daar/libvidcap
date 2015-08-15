@@ -51,6 +51,9 @@ struct frame_info
 	struct timeval capture_time;
 };
 
+/**
+ * General struct that contains pointers to the context functions
+ */
 struct sapi_src_context
 {
 	int (*release)(struct sapi_src_context *);
