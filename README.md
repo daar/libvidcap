@@ -13,6 +13,8 @@ This repo is created to add and test some new features and improvements from the
 - different camera SDK support
 - code refactoring and simplification
 
+For more information about the library and it's internals, plese visit the [wiki][3].
+
 ----------
 
 Building libvidcap
@@ -42,3 +44,4 @@ Supported video backends are;
 
 [1]: https://sourceforge.net/projects/libvidcap/
 [2]: https://github.com/daar/libvidcap/blob/master/doc/libvidcap-logo.png
+[3]: https://github.com/daar/libvidcap/wiki
