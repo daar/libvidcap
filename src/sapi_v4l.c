@@ -23,6 +23,15 @@
  *
  */
 
+/** \file sapi_v4l.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+
+ */
+
 #include <errno.h>
 #include <fcntl.h>
 

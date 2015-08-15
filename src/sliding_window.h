@@ -44,18 +44,65 @@ struct sliding_window
 	int tail;
 };
 
+/**
+ *  \brief sliding_window_create
+ *  
+ *  \param [in] window_len  Parameter_Description
+ *  \param [in] object_size Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 struct sliding_window *
 sliding_window_create(int window_len, int object_size);
 
+/**
+ *  \brief sliding_window_count
+ *  
+ *  \param [in] swin Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 int
 sliding_window_count(struct sliding_window * swin);
 
+/**
+ *  \brief sliding_window_destroy
+ *  
+ *  \param [in] swin Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 void
 sliding_window_destroy(struct sliding_window * swin);
 
+/**
+ *  \brief sliding_window_slide
+ *  
+ *  \param [in] swin   Parameter_Description
+ *  \param [in] object Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 void
 sliding_window_slide(struct sliding_window * swin, void * object);
 
+/**
+ *  \brief sliding_window_peek_front
+ *  
+ *  \param [in] swin Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 void *
 sliding_window_peek_front(struct sliding_window * swin);
 

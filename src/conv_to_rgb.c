@@ -23,6 +23,14 @@
  *
  */
 
+/** \file conv_to_rgb.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <vidcap/converters.h>
 
 enum {
@@ -87,17 +95,17 @@ static void init_yuv2rgb_tables(void)
 	tables_initialized = 1;
 }
 
-/*
- * Function to convert i420 images to rgb32
- * rgb32: 0xFFRRGGBB
- * This function uses precalculated tables that are initialized
- * on the first run.
+/** \brief Function to convert i420 images to rgb32
  *
- * Dest should be width * height * 4 bytes in size.
+ *  rgb32: 0xFFRRGGBB
+ *  This function uses precalculated tables that are initialized
+ *  on the first run.
  *
- * Based on the formulas found at http://en.wikipedia.org/wiki/YUV
+ *  Dest should be width * height * 4 bytes in size.
  *
- * NOTE: size of dest buffer must be >= width * height * 4
+ *  Based on the formulas found at http://en.wikipedia.org/wiki/YUV
+ *
+ *  \note size of dest buffer must be >= width * height * 4
  */
 
 int
@@ -152,9 +160,11 @@ vidcap_i420_to_rgb32(int width, int height, const char * src, char * dest)
 	return 0;
 }
 
-/* There are two pixels per 32-bit word of the source buffer. This
- * includes two luminance (y) components and a single red and blue
- * chroma (Cr and Cb aka v and u) sample use for both pixels. 
+/** \brief Convert YUV2 to RGB32
+ *
+ *  There are two pixels per 32-bit word of the source buffer. This
+ *  includes two luminance (y) components and a single red and blue
+ *  chroma (Cr and Cb aka v and u) sample use for both pixels.
  */
 int vidcap_yuy2_to_rgb32(int width, int height, const char * src, char * dest)
 {

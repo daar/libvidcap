@@ -87,6 +87,14 @@ typedef pthread_t vc_thread;
 #include <sys/sysctl.h>
 #endif
 
+/**
+ *  \brief vc_now
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 static __inline struct timeval
 vc_now(void)
 {
@@ -114,6 +122,16 @@ vc_now(void)
 	return tv;
 }
 
+/**
+ *  \brief vc_create_thread
+ *  
+ *  \param [in] thread      Parameter_Description
+ *  \param [in] thread_func Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 static __inline int
 vc_create_thread(vc_thread *thread,
 		unsigned int (STDCALL * thread_func)(void *),
@@ -138,6 +156,15 @@ vc_create_thread(vc_thread *thread,
 	return ret;
 }
 
+/**
+ *  \brief vc_thread_join
+ *  
+ *  \param [in] thread Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 static __inline int
 vc_thread_join(vc_thread *thread)
 {
@@ -157,6 +184,15 @@ vc_thread_join(vc_thread *thread)
 #endif
 }
 
+/**
+ *  \brief vc_mutex_init
+ *  
+ *  \param [in] m Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 static __inline int
 vc_mutex_init(vc_mutex *m)
 {
@@ -169,6 +205,15 @@ vc_mutex_init(vc_mutex *m)
 #endif
 }
 
+/**
+ *  \brief vc_mutex_lock
+ *  
+ *  \param [in] m Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 static __inline int
 vc_mutex_lock(vc_mutex *m)
 {
@@ -181,6 +226,15 @@ vc_mutex_lock(vc_mutex *m)
 #endif
 }
 
+/**
+ *  \brief vc_mutex_trylock
+ *  
+ *  \param [in] m Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 static __inline int
 vc_mutex_trylock(vc_mutex *m)
 {
@@ -191,6 +245,15 @@ vc_mutex_trylock(vc_mutex *m)
 #endif
 }
 
+/**
+ *  \brief vc_mutex_unlock
+ *  
+ *  \param [in] m Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 static __inline int
 vc_mutex_unlock(vc_mutex *m)
 {
@@ -203,6 +266,15 @@ vc_mutex_unlock(vc_mutex *m)
 #endif
 }
 
+/**
+ *  \brief vc_mutex_destroy
+ *  
+ *  \param [in] m Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 static __inline int
 vc_mutex_destroy(vc_mutex *m)
 {
@@ -215,6 +287,15 @@ vc_mutex_destroy(vc_mutex *m)
 #endif
 }
 
+/**
+ *  \brief vc_millisleep
+ *  
+ *  \param [in] ms Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 static __inline void
 vc_millisleep(long ms)
 {

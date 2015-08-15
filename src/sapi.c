@@ -23,6 +23,14 @@
  *
  */
 
+/** \file sapi.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #include <stdlib.h>
 #include <string.h>
 
@@ -332,16 +340,16 @@ deliver_frame(struct sapi_src_context * src_ctx)
 	return 0;
 }
 
-/* NOTE: stride-ignorant sapis should pass a stride of zero */
+/** \note stride-ignorant sapis should pass a stride of zero */
 int
 sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 		char * video_data, int video_data_size,
 		int stride,
 		int error_status)
 {
-	/* NOTE: We may be called here by the capture thread while the
-	 * main thread is clearing capture_data and capture_callback
-	 * from within vidcap_src_capture_stop().
+	/** \note We may be called here by the capture thread while the
+	 *        main thread is clearing capture_data and capture_callback
+	 *        from within vidcap_src_capture_stop().
 	 */
 
 	struct frame_info *frame = &src_ctx->callback_frame;

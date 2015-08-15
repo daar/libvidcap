@@ -26,6 +26,14 @@
 // If the device is removed or encounters an error, the capture callback will
 // be called with a special status code, indicating it's the last callback
 
+/** \file GraphMonitor.cpp
+ *  \ingroup DirectShow
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <stdexcept>
 #include "GraphMonitor.h"
 #include "logging.h"

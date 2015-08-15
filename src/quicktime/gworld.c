@@ -23,6 +23,14 @@
  *
  */
 
+/** \file gworld.c
+ *  \ingroup QuickTime
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #include "gworld.h"
 #include "logging.h"
 

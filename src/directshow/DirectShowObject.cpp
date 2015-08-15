@@ -22,6 +22,14 @@
 // <http://www.gnu.org/licenses/>.
 //
 
+/** \file DirectShowObject.cpp
+ *  \ingroup DirectShow
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <windows.h>
 #include <atlbase.h>
 #include <comutil.h>

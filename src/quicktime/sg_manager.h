@@ -45,17 +45,72 @@ struct sg_manager
 	struct sg_source * source_list;
 };
 
+/**
+ *  \brief sg_manager_init
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_manager_init(struct sg_manager *);
+
+/**
+ *  \brief sg_manager_destroy
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_manager_destroy(struct sg_manager *);
+
+/**
+ *  \brief sg_manager_update
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_manager_update(struct sg_manager *);
+
+/**
+ *  \brief sg_manager_source_count
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_manager_source_count(struct sg_manager *);
 
+/**
+ *  \brief sg_manager_source_get
+ *  
+ *  \param [in] index Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 struct sg_source *
 sg_manager_source_get(struct sg_manager *, int index);
 
+/**
+ *  \brief sg_manager_source_find
+ *  
+ *  \param [in] device_id Parameter_Description
+ *  \param [in] input_id  Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 struct sg_source *
 sg_manager_source_find(struct sg_manager *, int device_id, int input_id);
 
+/**
+ *  \brief sg_manager_source_default_find
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 struct sg_source *
 sg_manager_source_default_find(struct sg_manager *);
 

@@ -23,11 +23,19 @@
  *
  */
 
+/** \file conv_to_i420.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #include <string.h>
 #include <vidcap/converters.h>
 #include "logging.h"
 
-/* NOTE: size of dest must be >= width * height * 3 / 2 
+/** \note size of dest must be >= width * height * 3 / 2
  */
 
 /* Based on formulas found at http://en.wikipedia.org/wiki/YUV */

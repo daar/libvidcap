@@ -43,8 +43,36 @@ struct gworld_info
 	GWorldPtr gworld;
 };
 
+/**
+ *  \brief gworld_init
+ *  
+ *  \param [in] gi           Parameter_Description
+ *  \param [in] dim          Parameter_Description
+ *  \param [in] pixel_format Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int gworld_init(struct gworld_info * gi, const Rect * dim, OSType pixel_format);
+
+/**
+ *  \brief gworld_destroy
+ *  
+ *  \param [in] gi Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int gworld_destroy(struct gworld_info * gi);
+
+/**
+ *  \brief gworld_get
+ *  
+ *  \param [in] gi Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 GWorldPtr gworld_get(struct gworld_info * gi);
 
 #endif

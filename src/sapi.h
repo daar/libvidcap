@@ -46,21 +46,69 @@
 extern "C" {
 #endif
 
+/**
+ *  \brief sapi_acquire
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 int
 sapi_acquire(struct sapi_context *);
 
+/**
+ *  \brief sapi_release
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 int
 sapi_release(struct sapi_context *);
 
+/**
+ *  \brief sapi_src_capture_notify
+ *  
+ *  \param [in] src_ctx         Parameter_Description
+ *  \param [in] video_data      Parameter_Description
+ *  \param [in] video_data_size Parameter_Description
+ *  \param [in] stride          Parameter_Description
+ *  \param [in] error_status    Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 int
 sapi_src_capture_notify(struct sapi_src_context * src_ctx,
 		char * video_data, int video_data_size,
 		int stride,
 		int error_status);
 
+/**
+ *  \brief sapi_src_format_list_build
+ *  
+ *  \param [in] src_ctx Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 int
 sapi_src_format_list_build(struct sapi_src_context * src_ctx);
 
+/**
+ *  \brief sapi_can_convert_native_to_nominal
+ *  
+ *  \param [in] fmt_native  Parameter_Description
+ *  \param [in] fmt_nominal Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 int
 sapi_can_convert_native_to_nominal(const struct vidcap_fmt_info * fmt_native,
 		const struct vidcap_fmt_info * fmt_nominal);

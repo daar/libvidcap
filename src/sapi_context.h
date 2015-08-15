@@ -139,15 +139,48 @@ struct sapi_context
 	struct sapi_src_list user_src_list;
 };
 
+/**
+ *  \brief sapi_src_fps_info_init
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 int
 sapi_src_fps_info_init(struct sapi_src_context *);
 
+/**
+ *  \brief sapi_src_fps_info_clean
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 void
 sapi_src_fps_info_clean(struct sapi_src_context *);
 
+/**
+ *  \brief sapi_src_timer_thread_idled
+ *  
+ *  \param [in] src_ctx Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 void
 sapi_src_timer_thread_idled(struct sapi_src_context * src_ctx);
 
+/**
+ *  \brief sapi_src_timer_thread_func
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ *  
+ */
 unsigned int
 STDCALL sapi_src_timer_thread_func(void *);
 

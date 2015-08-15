@@ -23,6 +23,14 @@
  *
  */
 
+/** \file sg_source.c
+ *  \ingroup QuickTime
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #include "logging.h"
 #include "sg_source.h"
 

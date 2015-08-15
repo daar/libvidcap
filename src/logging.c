@@ -23,6 +23,14 @@
  *
  */
 
+/** \file logging.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif

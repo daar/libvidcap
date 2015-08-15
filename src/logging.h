@@ -49,21 +49,125 @@ enum log_level
 	log_level_debug = 4
 };
 
+/**
+ *  \brief log_file_set
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_file_set(FILE *);
+
+/**
+ *  \brief log_level_set
+ *  
+ *  \param [in] log_level Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_level_set(enum log_level);
 
 #ifdef __GNUC__
+/**
+ *  \brief log_error
+ *  
+ *  \param [in] fmt Parameter_Description
+ *  \param [in] ... Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_error(const char * fmt, ...) __attribute__ ((format (printf, 1, 2)));
+
+/**
+ *  \brief log_warn
+ *  
+ *  \param [in] fmt Parameter_Description
+ *  \param [in] ... Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_warn(const char * fmt, ...) __attribute__ ((format (printf, 1, 2)));
+
+/**
+ *  \brief log_info
+ *  
+ *  \param [in] fmt Parameter_Description
+ *  \param [in] ... Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_info(const char * fmt, ...) __attribute__ ((format (printf, 1, 2)));
+
+/**
+ *  \brief log_debug
+ *  
+ *  \param [in] fmt Parameter_Description
+ *  \param [in] ... Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_debug(const char * fmt, ...) __attribute__ ((format (printf, 1, 2)));
 #else
+
+/**
+ *  \brief log_error
+ *  
+ *  \param [in] fmt Parameter_Description
+ *  \param [in] ... Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_error(const char * fmt, ...);
+
+/**
+ *  \brief log_warn
+ *  
+ *  \param [in] fmt Parameter_Description
+ *  \param [in] ... Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_warn(const char * fmt, ...);
+
+/**
+ *  \brief log_info
+ *  
+ *  \param [in] fmt Parameter_Description
+ *  \param [in] ... Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_info(const char * fmt, ...);
+
+/**
+ *  \brief log_debug
+ *  
+ *  \param [in] fmt Parameter_Description
+ *  \param [in] ... Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_debug(const char * fmt, ...);
 #endif
 
+/**
+ *  \brief log_oom
+ *  
+ *  \param [in] file Parameter_Description
+ *  \param [in] line Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void log_oom(const char * file, int line);
 
 #ifdef __cplusplus

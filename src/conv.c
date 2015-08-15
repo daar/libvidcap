@@ -23,6 +23,14 @@
  *
  */
 
+/** \file conv.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #if HAVE_QUICKTIME
 #include <QuickTime/ImageCodec.h>
 #endif
@@ -163,8 +171,8 @@ int
 destridify(int width, int height, int fourcc, int stride,
 		const char * src, char * dst)
 {
-	/* NOTE: we're making-up the u and v strides for planar formats,
-	 *       rather than pass them in.
+	/** \note we're making-up the u and v strides for planar formats,
+	 *        rather than pass them in.
 	 */
 
 	switch ( fourcc )

@@ -62,27 +62,131 @@ struct sg_source
 	struct gworld_info gi;
 };
 
+/**
+ *  \brief sg_source_init
+ *  
+ *  \param [in] device_id   Parameter_Description
+ *  \param [in] input_id    Parameter_Description
+ *  \param [in] device_name Parameter_Description
+ *  \param [in] input_name  Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_init(struct sg_source *, int device_id, int input_id,
 		Str63 device_name, Str63 input_name);
 
+/**
+ *  \brief sg_source_anon_init
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_anon_init(struct sg_source *);
+
+/**
+ *  \brief sg_source_destroy
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_destroy(struct sg_source *);
 
+/**
+ *  \brief sg_source_match
+ *  
+ *  \param [in] device_id Parameter_Description
+ *  \param [in] input_id  Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_match(struct sg_source *, int device_id, int input_id);
 
+/**
+ *  \brief sg_source_acquire
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_acquire(struct sg_source *);
+
+/**
+ *  \brief sg_source_release
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_release(struct sg_source *);
 
+/**
+ *  \brief sg_source_format_validate
+ *  
+ *  \param [in] width  Parameter_Description
+ *  \param [in] height Parameter_Description
+ *  \param [in] fps    Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_format_validate(struct sg_source *, int width, int height,
 		float fps);
 
+/**
+ *  \brief sg_source_format_set
+ *  
+ *  \param [in] width        Parameter_Description
+ *  \param [in] height       Parameter_Description
+ *  \param [in] fps          Parameter_Description
+ *  \param [in] pixel_format Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_format_set(struct sg_source *, int width, int height, float fps,
 		OSType pixel_format);
 
+/**
+ *  \brief sg_source_image_desc_get
+ *  
+ *  \param [in] ImageDescriptionHandle Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_image_desc_get(struct sg_source *, ImageDescriptionHandle);
 
+/**
+ *  \brief sg_source_capture_start
+ *  
+ *  \param [in] SGDataUPP Parameter_Description
+ *  \param [in] long      Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_capture_start(struct sg_source *, SGDataUPP, long);
+
+/**
+ *  \brief sg_source_capture_stop
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_capture_stop(struct sg_source *);
+
+/**
+ *  \brief sg_source_capture_poll
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int sg_source_capture_poll(struct sg_source *);
 
 #endif

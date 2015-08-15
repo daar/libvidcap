@@ -54,15 +54,55 @@ typedef int (*conv_func)(int width, int height, const char * src, char * dst);
 extern "C" {
 #endif
 
+/**
+ *  \brief conv_conversion_func_get
+ *  
+ *  \param [in] src_fourcc Parameter_Description
+ *  \param [in] dst_fourcc Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 conv_func
 conv_conversion_func_get(int src_fourcc, int dst_fourcc);
 
+/**
+ *  \brief conv_fmt_size_get
+ *  
+ *  \param [in] width  Parameter_Description
+ *  \param [in] height Parameter_Description
+ *  \param [in] fourcc Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 conv_fmt_size_get(int width, int height, int fourcc);
 
+/**
+ *  \brief conv_conversion_name_get
+ *  
+ *  \param [in] function Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 const char *
 conv_conversion_name_get(conv_func function);
 
+/**
+ *  \brief destridify
+ *  
+ *  \param [in] width  Parameter_Description
+ *  \param [in] height Parameter_Description
+ *  \param [in] fourcc Parameter_Description
+ *  \param [in] stride Parameter_Description
+ *  \param [in] src    Parameter_Description
+ *  \param [in] dst    Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 destridify(int width, int height, int fourcc, int stride,
                 const char * src, char * dst);

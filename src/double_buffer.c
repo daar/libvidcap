@@ -23,6 +23,14 @@
  *
  */
 
+/** \file double_buffer.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -41,7 +49,7 @@
  * to make room for an incoming object
  */
 
-/* NOTE: This function is passed a function pointer to
+/** \note This function is passed a function pointer to
  *       call when necessary to copy an object
  */
 struct double_buffer *

@@ -22,6 +22,14 @@
 // <http://www.gnu.org/licenses/>.
 //
 
+/** \file DirectShowSource.cpp
+ *  \ingroup DirectShow
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include "os_funcs.h"
 #include <cstring>
 #include <cstdio>

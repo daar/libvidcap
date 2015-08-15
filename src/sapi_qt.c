@@ -23,6 +23,14 @@
  *
  */
 
+/** \file sapi_qt.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <stdlib.h>
 #include <strings.h>
 

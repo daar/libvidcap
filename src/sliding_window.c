@@ -23,6 +23,15 @@
  *
  */
 
+/** \file sliding_window.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+
+ */
+ 
 #include <stdlib.h>
 #include <string.h>
 

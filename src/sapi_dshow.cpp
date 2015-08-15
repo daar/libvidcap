@@ -22,6 +22,14 @@
 // <http://www.gnu.org/licenses/>.
 //
 
+/** \file sapi_dshow.cpp
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #include <stdio.h>
 
 #include "sapi.h"

@@ -23,6 +23,14 @@
  *
  */
 
+/** \file sg_manager.c
+ *  \ingroup QuickTime
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */ 
+
 #include "logging.h"
 #include "sg_manager.h"
 

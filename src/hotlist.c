@@ -23,6 +23,14 @@
  *
  */
 
+ /** \file hotlist.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+
 #include <vidcap/vidcap.h>
 #include "hotlist.h"
 

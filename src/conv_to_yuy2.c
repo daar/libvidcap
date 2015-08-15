@@ -23,9 +23,17 @@
  *
  */
 
+/** \file conv_to_yuy2.c
+ *  \ingroup Core
+ *  \brief Brief
+ *  \author Peter Grayson <jpgrayson@gmail.com>
+ *  \author Bill Cholewka <bcholew@gmail.com>
+ *  \since 2007
+ */
+ 
 #include <vidcap/converters.h>
 
-/* NOTE: size of dest buffer must be >= width * height * 2 */
+/** \note size of dest buffer must be >= width * height * 2 */
 
 /* Based on formulas found at http://en.wikipedia.org/wiki/YUV */
 int
@@ -42,7 +50,7 @@ vidcap_rgb32_to_yuy2(int width, int height, const char * src, char * dest)
 		int j;
 		for ( j = 0; j < width / 2; ++j )
 		{
-			/* NOTE: u and v are taken from different src samples */
+			/** \note u and v are taken from different src samples */
 
 			short r, g, b;
 			b = *src_even++;
