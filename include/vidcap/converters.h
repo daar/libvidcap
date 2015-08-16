@@ -38,21 +38,87 @@
 extern "C" {
 #endif
 
+/**
+ *  \brief Converts i420 to rgb32
+ *  
+ *  \param [in] width  Width of the source image
+ *  \param [in] height Height of the source image
+ *  \param [in] src    Source image
+ *  \param [in] dest   Destination image
+ *  \return Returns 0 on success
+ *  
+ *  \details Details
+ */
 int
 vidcap_i420_to_rgb32(int width, int height, const char * src, char * dest);
 
+/**
+ *  \brief Converts i420 to yuy2
+ *  
+ *  \param [in] width  Width of the source image
+ *  \param [in] height Height of the source image
+ *  \param [in] src    Source image
+ *  \param [in] dest   Destination image
+ *  \return Returns 0 on success
+ *  
+ *  \details Details
+ */
 int
 vidcap_i420_to_yuy2(int width, int height, const char * src, char * dest);
 
+/**
+ *  \brief Converts yuy2 to i420
+ *  
+ *  \param [in] width  Width of the source image
+ *  \param [in] height Height of the source image
+ *  \param [in] src    Source image
+ *  \param [in] dest   Destination image
+ *  \return Returns 0 on success
+ *  
+ *  \details Details
+ */
 int
 vidcap_yuy2_to_i420(int width, int height, const char * src, char * dest);
 
+/**
+ *  \brief Converts yuy2 to rgb32
+ *  
+ *  \param [in] width  Width of the source image
+ *  \param [in] height Height of the source image
+ *  \param [in] src    Source image
+ *  \param [in] dest   Destination image
+ *  \return Returns 0 on success
+ *  
+ *  \details Details
+ */
 int
 vidcap_yuy2_to_rgb32(int width, int height, const char * src, char * dest);
 
+/**
+ *  \brief Converts rgb32 to i420
+ *  
+ *  \param [in] width  Width of the source image
+ *  \param [in] height Height of the source image
+ *  \param [in] src    Source image
+ *  \param [in] dest   Destination image
+ *  \return Returns 0 on success
+ *  
+ *  \details Details
+ */
 int
 vidcap_rgb32_to_i420(int width, int height, const char * src, char * dest);
 
+/**
+ *  \brief Converts rgb32 to yuy2
+ *  
+ *  \param [in] width  Width of the source image
+ *  \param [in] height Height of the source image
+ *  \param [in] src    Source image
+ *  \param [in] dest   Destination image
+ *  \return Returns 0 on success
+ *  
+ *  \details Details
+ */
 int
 vidcap_rgb32_to_yuy2(int width, int height, const char * src, char * dest);
 

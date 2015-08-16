@@ -99,76 +99,225 @@ typedef int (*vidcap_src_capture_callback) (vidcap_src *,
 
 typedef int (*vidcap_sapi_notify_callback) (vidcap_sapi *, void * user_data);
 
+/**
+ *  \brief vidcap_initialize
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 vidcap_state *
 vidcap_initialize(void);
 
+/**
+ *  \brief vidcap_destroy
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 void
 vidcap_destroy(vidcap_state *);
 
+/**
+ *  \brief vidcap_log_level_set
+ *  
+ *  \param [in] level Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_log_level_set(enum vidcap_log_level level);
 
+/**
+ *  \brief vidcap_sapi_enumerate
+ *  
+ *  \param [in] index Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_sapi_enumerate(vidcap_state *,
 		int index,
 		struct vidcap_sapi_info *);
 
+/**
+ *  \brief vidcap_sapi_acquire
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 vidcap_sapi *
 vidcap_sapi_acquire(vidcap_state *,
 		const struct vidcap_sapi_info *);
 
+/**
+ *  \brief vidcap_sapi_release
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_sapi_release(vidcap_sapi *);
 
+/**
+ *  \brief vidcap_sapi_info_get
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_sapi_info_get(vidcap_sapi *,
 		struct vidcap_sapi_info *);
 
+/**
+ *  \brief vidcap_srcs_notify
+ *  
+ *  \param [in] callback  Parameter_Description
+ *  \param [in] user_data Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_srcs_notify(vidcap_sapi *,
 		vidcap_sapi_notify_callback callback,
 		void * user_data);
 
+/**
+ *  \brief vidcap_src_list_update
+ *  
+ *  \param [in] sapi Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_src_list_update(vidcap_sapi * sapi);
 
+/**
+ *  \brief vidcap_src_list_get
+ *  
+ *  \param [in] sapi     Parameter_Description
+ *  \param [in] list_len Parameter_Description
+ *  \param [in] src_list Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_src_list_get(vidcap_sapi * sapi,
 		int list_len,
 		struct vidcap_src_info * src_list);
 
+/**
+ *  \brief vidcap_src_acquire
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 vidcap_src *
 vidcap_src_acquire(vidcap_sapi *,
 		const struct vidcap_src_info *);
 
+/**
+ *  \brief vidcap_src_release
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_src_release(vidcap_src *);
 
+/**
+ *  \brief vidcap_src_info_get
+ *  
+ *  \param [in] src      Parameter_Description
+ *  \param [in] src_info Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_src_info_get(vidcap_src * src,
 		struct vidcap_src_info * src_info);
 
+/**
+ *  \brief vidcap_format_enumerate
+ *  
+ *  \param [in] index Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_format_enumerate(vidcap_src *,
 		int index,
 		struct vidcap_fmt_info *);
 
+/**
+ *  \brief vidcap_format_bind
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_format_bind(vidcap_src *,
 		const struct vidcap_fmt_info *);
 
+/**
+ *  \brief vidcap_format_info_get
+ *  
+ *  \param [in] src      Parameter_Description
+ *  \param [in] fmt_info Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_format_info_get(vidcap_src * src,
 		struct vidcap_fmt_info * fmt_info);
 
+/**
+ *  \brief vidcap_src_capture_start
+ *  
+ *  \param [in] callback  Parameter_Description
+ *  \param [in] user_data Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_src_capture_start(vidcap_src *,
 		vidcap_src_capture_callback callback,
 		void * user_data);
 
+/**
+ *  \brief vidcap_src_capture_stop
+ *  
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 int
 vidcap_src_capture_stop(vidcap_src *);
 
+/**
+ *  \brief vidcap_fourcc_string_get
+ *  
+ *  \param [in] fourcc Parameter_Description
+ *  \return Return_Description
+ *  
+ *  \details Details
+ */
 const char *
 vidcap_fourcc_string_get(int fourcc);
 
