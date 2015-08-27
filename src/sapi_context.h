@@ -132,9 +132,9 @@ struct sapi_context
 	vidcap_sapi_notify_callback notify_callback;
 	void * notify_data;
 
-	const char * identifier;
-	const char * description;
-	void * priv;
+	const char * identifier; /**< identifier of the active backend */
+	const char * description; /**< additional description of the active backend */
+	void * priv; /**< pointer to the context data specific for the backend */
 	int ref_count;
 	struct sapi_src_list user_src_list;
 };

@@ -28,7 +28,7 @@
 
 /** \file os_funcs.h
  *  \ingroup Core
- *  \brief OS dependant functions.
+ *  \brief This file contains wrappers for OS specific functions.
  *  \author Peter Grayson <jpgrayson@gmail.com>
  *  \author Bill Cholewka <bcholew@gmail.com>
  *  \since 2007
@@ -185,13 +185,14 @@ vc_thread_join(vc_thread *thread)
 }
 
 /**
- *  \brief vc_mutex_init
- *  
- *  \param [in] m Parameter_Description
- *  \return Return_Description
- *  
- *  \details Details
- *  
+ *  \brief Initialize a mutex
+ *
+ *  \param [in] m Mutex reference
+ *  \return Zero in case of success for Linux and Apple. On Windows allways zero.
+ *
+ *  \details This function uses pthread for Linux and Apple. On Windows it uses
+ *           the native InitializeCriticalSection.
+ *
  */
 static __inline int
 vc_mutex_init(vc_mutex *m)

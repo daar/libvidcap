@@ -50,7 +50,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter ${PT
 if(WIN32)
 	find_package(DirectShow)
 	if(DIRECTSHOW_FOUND)
-		add_definitions(-DHAVE_DIRECTSHOW)
+		set(HAVE_DIRECTSHOW 1)
 	endif()
 endif()
 #-----------------------------------------------------------------------------
@@ -58,7 +58,7 @@ endif()
 if(APPLE)
 	find_package(QuickTime)
 	if(QUICKTIME_FOUND)
-		add_definitions(-DHAVE_QUICKTIME)
+		set(HAVE_QUICKTIME 1)
 
 		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -F/Library/Frameworks -weak_framework Carbon")
 		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -F/Library/Frameworks -weak_framework QuartzCore")
@@ -81,10 +81,12 @@ if(UNIX AND NOT APPLE)
 
 	if(WITH_V4L AND V4L1_FOUND)
 		set(HAVE_V4L 1)
+		set(LIBVIDCAP_BACKEND_LIBS v4l1)
 	endif()
 
 	if(WITH_V4L2 AND V4L2_FOUND)
 		SET(HAVE_V4L2 1)
+		set(LIBVIDCAP_BACKEND_LIBS v4l2)
 	endif()
 
 	if(V4L1_COMPATIBILITY_HEADER)
@@ -96,6 +98,8 @@ endif()
 # write the config file
 
 configure_file(config.h.in ${CMAKE_BINARY_DIR}/config.h)
+
+#this define should be allways set, time to remove it from the sources?
 add_definitions(-DHAVE_CONFIG_H)
 
 #-----------------------------------------------------------------------------

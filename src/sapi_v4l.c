@@ -454,7 +454,15 @@ device_path_generate(char * device_path, int device_path_len, int * state)
 	return 1;
 }
 
-/* The scanning semantics are a bit tricky. The src_list pointer parameter
+/**
+ *  \brief scan all available V4L1 devices
+ *
+ *  \param [in] sapi_ctx Parameter_Description
+ *  \param [in] src_list Parameter_Description
+ *  \return Returns 0 on success -1 on fail
+ *
+ *  \details
+ * The scanning semantics are a bit tricky. The src_list pointer parameter
  * may or may not have anything in it. If we were so inclined, we could
  * potentially reuse the memory in src_list->list; however we just free()
  * the memory and start over.
@@ -476,9 +484,9 @@ device_path_generate(char * device_path, int device_path_len, int * state)
  *
  * For example, consider this case:
  *
- *   src0 --> /dev/video0 channel 0
- *   src1 --> /dev/video0 channel 1
- *   src2 --> /dev/video1 channel 0
+ * `  src0 --> /dev/video0 channel 0`a\n
+ * `  src1 --> /dev/video0 channel 1`\n
+ * `  src2 --> /dev/video1 channel 0`\n
  *
  * If a user acquires src0, this implies that src1 is unavailable, so we
  * put both src0 and src1 into the acquired list! Since src2 has a
@@ -996,6 +1004,15 @@ notify_thread_stop(struct sapi_context * sapi_ctx)
 	return 0;
 }
 
+/**
+ *  \brief monitor_sources
+ *
+ *  \param [in] sapi_ctx Parameter_Description
+ *  \return Return_Description
+ *
+ *  \details Details
+ *
+ */
 static int
 monitor_sources(struct sapi_context * sapi_ctx)
 {

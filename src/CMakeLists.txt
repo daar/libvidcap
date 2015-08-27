@@ -51,5 +51,4 @@ else()
 endif()
 
 add_library(vidcap ${LIBVIDCAP_LIB_TYPE} ${LIBVIDCAP_SRC})
-#set_target_properties(vidcap ${PLATFORM_LINKFLAGS})
-target_link_libraries(vidcap ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(vidcap ${CMAKE_THREAD_LIBS_INIT} ${LIBVIDCAP_BACKEND_LIBS})
